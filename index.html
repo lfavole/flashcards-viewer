@@ -6,13 +6,15 @@
     <title>Flashcards viewer</title>
     <link rel="stylesheet" href="static/style.css">
     <script src="static/cdn.min.js" defer></script>
+    <script src="static/i18n.min.js"></script>
     <script src="static/jszip.min.js"></script>
     <script src="static/sql-wasm.js"></script>
     <script src="static/tablesort.min.js"></script>
     <script src="static/script.js"></script>
 </head>
-<body x-data="{ files: {}, selectedFile: null, selectedDeck: null, selectedNote: null, selectedTemplate: null, flipped: false }">
-    <h1>Flashcards viewer</h1>
+<body x-data="{ files: {}, selectedFile: null, selectedDeck: null, selectedNote: null, selectedTemplate: null, flipped: false }" x-init="setupTranslations()">
+    <h1 x-data x-text="$t('Flashcards viewer')"></h1>
+    <span x-data x-text="$t('Select file to open:')"></span>
     <input type="file" x-init="$el.value = ''" @change="openFile($el).then(f => files[f[0]] = f[1])">
     <ul class="files">
         <template x-data x-for="file, fileName in files">
@@ -33,7 +35,7 @@
             <thead>
                 <tr>
                     <template x-data x-for="field in FIELDS">
-                        <th x-text="field"></th>
+                        <th x-text="$t(field)"></th>
                     </template>
                 </tr>
             </thead>
@@ -58,7 +60,7 @@
     <template x-if="selectedTemplate !== null">
         <div>
             <div class="card" x-html="await renderWithMedia(selectedFile.models[selectedNote.mid], selectedTemplate, selectedNote, selectedFile, flipped)"></div>
-            <button @click="flipped = !flipped">Flip</button>
+            <button @click="flipped = !flipped" x-text="$t('Flip')"></button>
         </div>
     </template>
 </body>
