@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashcards viewer</title>
+    <link rel="stylesheet" href="static/style.css">
+    <script src="static/cdn.min.js" defer></script>
+    <script src="static/jszip.min.js"></script>
+    <script src="static/sql-wasm.js"></script>
+    <script src="static/tablesort.min.js"></script>
+    <script src="static/script.js"></script>
+</head>
+<body x-data="{ files: {}, selectedFile: null, selectedDeck: null, selectedNote: null, selectedTemplate: null, flipped: false }">
+    <h1>Flashcards viewer</h1>
+    <input type="file" x-init="$el.value = ''" @change="openFile($el).then(f => files[f[0]] = f[1])">
+    <ul class="files">
+        <template x-data x-for="file, fileName in files">
+            <li x-text="fileName" @click="selectedFile = file"></li>
+        </template>
+    </ul>
+    <template x-if="selectedFile">
+        <ul class="decks">
+            <template x-data x-for="deck, deckId in selectedFile.decks">
+                <template x-if="deck.mod">
+                    <li x-text="deck.name" @click="selectedDeck = getDeck(selectedFile, deckId)"></li>
+                </template>
+            </template>
+        </ul>
+    </template>
+    <template x-if="selectedDeck">
+        <table class="notes">
+            <thead>
+                <tr>
+                    <template x-data x-for="field in FIELDS">
+                        <th x-text="field"></th>
+                    </template>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-data x-for="note in selectedDeck">
+                    <tr @click="selectedNote = note">
+                        <template x-data x-for="field, fieldName in FIELDS">
+                            <td x-text="getField(note, fieldName, selectedFile)"></td>
+                        </template>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </template>
+    <template x-if="selectedNote">
+        <ul class="templates">
+            <template x-data x-for="template in selectedFile.models[selectedNote.mid].tmpls.map((e, i) => [e, i])">
+                <li x-text="template[0].name" @click="selectedTemplate = template[1]"></li>
+            </template>
+        </ul>
+    </template>
+    <template x-if="selectedTemplate !== null">
+        <div>
+            <div class="card" x-html="await renderWithMedia(selectedFile.models[selectedNote.mid], selectedTemplate, selectedNote, selectedFile, flipped)"></div>
+            <button @click="flipped = !flipped">Flip</button>
+        </div>
+    </template>
+</body>
+</html>
