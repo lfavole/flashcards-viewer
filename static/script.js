@@ -1,4 +1,30 @@
+var translations = {en: {}};
+var config = {language: "en"};
+var languages = ["fr"];
+
+function loadLanguage(lang) {
+    lang = lang.split("-")[0];
+    if(!languages.includes(lang)) return;
+
+    var script = document.createElement("script");
+    script.src = "static/" + lang + ".js";
+    script.addEventListener("load", function() {
+        AlpineI18n.locale = lang;
+    });
+    document.head.appendChild(script);
+    return true;
+}
+
+function setupTranslations() {
+    for(var lang of navigator.languages) {
+        if(loadLanguage(lang)) return;
+    }
+}
+
 window.addEventListener("DOMContentLoaded", function() {
+    // Setup translations
+    setupTranslations();
+
     // Setup Tablesort on all the existing tables...
     var tables = document.querySelectorAll("table");
     for(var table of tables) {
@@ -128,3 +154,8 @@ function render(model, id, note, flipped, textOnly) {
 async function renderWithMedia(model, id, note, file, flipped) {
     return await patchMediaURLs(render(model, id, note, flipped), file);
 }
+
+document.addEventListener("alpine-i18n:ready", function () {
+    // Setup translations
+    AlpineI18n.create("en", translations);
+});
