@@ -34,13 +34,12 @@ window.addEventListener("DOMContentLoaded", function() {
     var observer = new MutationObserver(function(mutations) {
         for(var mutation of mutations) {
             for(var node of mutation.addedNodes) {
-                if(node.tagName == "TABLE") {
+                if(node.tagName == "TABLE" && node.classList.contains("sort"))
                     new Tablesort(node);
-                }
             }
         }
     });
-    observer.observe(document.body, {childList: true, subtree: true})
+    observer.observe(document.body, {childList: true, subtree: true});
 });
 
 function sqlToDict(sql) {
@@ -56,9 +55,76 @@ function sqlToDict(sql) {
     return ret;
 }
 
-async function openFile(input) {
-    var jszip = new JSZip();
-    var zip = await jszip.loadAsync(input.files[0]);
+function _recursiveOpenEntry(item, openFunc) {
+    item.file(openFunc);
+
+    if (item.isDirectory) {
+        var directoryReader = item.createReader();
+        directoryReader.readEntries((entries) => {
+            entries.forEach(entry => _recursiveOpenEntry(entry, openFunc));
+        });
+    }
+}
+
+async function _recursiveOpenHandle(item, openFunc) {
+    for await (file of item.values()) {
+        if(file instanceof FileSystemDirectoryHandle)
+            _recursiveOpenHandle(file, openFunc);
+        else
+            openFunc(file);
+    }
+}
+
+async function recursiveOpen(dataTransfer, openFunc) {
+    // Array of files or URLs
+    if(dataTransfer.length !== undefined) {
+        [...dataTransfer].forEach(openFunc);
+        return;
+    }
+
+    // Old DataTransfer or file input
+    if(!("items" in dataTransfer)) {
+        [...dataTransfer.files].forEach(openFunc);
+        return;
+    }
+
+    for(var item of dataTransfer.items) {
+        if(item.kind == "file") {
+            var entry = item.getAsFileSystemHandle?.();
+            if(entry) {
+                await _recursiveOpenHandle(entry, openFunc);
+            } else {
+                entry = item.getAsEntry?.() || item.webkitGetAsEntry?.();
+                if(entry) {
+                    _recursiveOpenEntry(entry, openFunc);
+                } else {
+                    throw new Error("Could not open files, APIs are not available");
+                }
+            }
+        } else if(item.type == "text/plain" || item.type == "text/uri-list") {
+            item.getAsString(openFunc);
+        }
+    }
+}
+
+async function addFilesTo(dataTransferOrInput, files) {
+    await recursiveOpen(dataTransferOrInput, async file => {
+        if(!file) return;
+        files[file?.name || decodeURIComponent(file.replace(/^.*[/\\]/, ""))] = await openAndParseFile(file);
+    });
+}
+
+async function openAndParseFile(file) {
+    if(!file) return;
+
+    if(typeof file == "string") {
+        // Fetch the file
+        var resp = await fetch(file);
+        if(resp.status != 200 && resp.status != 0)
+            throw new Error(resp.statusText);
+        var file = resp.blob();
+    }
+    var zip = await JSZip.loadAsync(file);
     var buf = await zip.file("collection.anki21").async("uint8array");
 
     var media = await zip.file("media").async("text");
@@ -70,16 +136,113 @@ async function openFile(input) {
     // https://stackoverflow.com/a/8161801
     // https://dba.stackexchange.com/a/315294
     var notes = sqlToDict(db.exec("SELECT notes.mid, notes.mod, notes.tags, notes.flds, notes.sfld, cards.did FROM notes LEFT JOIN cards ON notes.id = cards.nid AND cards.id = (SELECT id FROM cards WHERE notes.id = cards.nid LIMIT 1)"));
-    return [
-        input.value.split(/(\\|\/)/g).pop(),
-        {
-            models: JSON.parse(col_info.models),
-            decks: JSON.parse(col_info.decks),
-            notes: notes,
-            media: JSON.parse(media),
-            zip: zip,
-        },
-    ];
+    return {
+        models: JSON.parse(col_info.models),
+        decks: cleanupDecks(JSON.parse(col_info.decks), notes),
+        notes: notes,
+        media: JSON.parse(media),
+        zip: zip,
+    };
+}
+
+function sortObject(obj, fn) {
+    /**
+     * Sort an object by its keys or with the specified function.
+     */
+    var ret = {};
+    var fn = fn || (e => e[0]);
+    Object.entries(obj).sort((a, b) => fn(a[0], a[1]).localeCompare(fn(b[0], b[1])))
+    .forEach(item => ret[item[0]] = obj[item[0]]);
+    return ret;
+}
+
+function getParentDecks(deckName) {
+    /**
+     * Given a deck name, return all the names of its parent decks.
+     */
+    var candidate = deckName;
+    var ret = [];
+    while(candidate.includes("::")) {
+        candidate = candidate.replace(/^(.*)::.*?$/, "$1");
+        ret.push(candidate);
+    }
+    return ret;
+}
+
+function getDeckNameIds(decks) {
+    /**
+     * Return an object that maps a deck ID to a deck name.
+     */
+    var ret = {};
+    for(var deckId in decks)
+        ret[decks[deckId].name] = +deckId;
+    return ret;
+}
+
+function cleanupDecks(decks, notes) {
+    /**
+     * Cleanup a decks list:
+     * * Remove the "Default" deck if it is empty
+     * * Add non-existent parent decks
+     * * Add parent deck IDs
+     * * Sort the list
+     * * Make the list reactive
+     */
+    // Remove the "Default" deck
+    if(decks[1] && decks[1].name == "Default" && !getDeck({notes: notes}, 1).length)
+        delete decks[1];
+
+    // Build a list of deck names
+    var deckNames = [];
+    for(var deckId in decks) {
+        deckNames.push(decks[deckId].name);
+    }
+    // Add non-existent parent decks
+    // If A::B::C exists, A::B has to exist,
+    // otherwise A::B::C will be unaccessible from the interface.
+    for(var deckName of deckNames) {
+        // Loop over all parent decks...
+        for(var deckNameToTry of getParentDecks(deckName)) {
+            // ...and check if they exist
+            if(!deckNames.includes(deckNameToTry)) {
+                // If a parent deck doesn't exist, add it
+                id = +(Math.random() + "").substring(2);
+                decks[id] = {name: deckNameToTry, id: id, collapsed: true};
+            }
+        }
+    }
+
+    // Build a list to get the ID of a deck with its name
+    var deckNameIds = {};
+    for(var deckId in decks) {
+        deckNameIds[decks[deckId].name] = +deckId;
+    }
+    // Add parent deck IDs
+    for(var deckId in decks) {
+        var deckName = decks[deckId].name
+        decks[deckId].hasChildren = !!deckNames.filter(name => name.startsWith(deckName + "::")).length;
+        decks[deckId].parentId = deckName.includes("::") ? deckNameIds[deckNameToTry.replace(/::.*?$/, "")] : 0;
+    }
+
+    // Sort the decks list...
+    decks = sortObject(decks, (deckId, deck) => deck.name);
+    // and make it reactive
+    for(var deckId in decks) {
+        decks[deckId] = Alpine.reactive(decks[deckId]);
+    }
+
+    return decks;
+}
+
+function isHidden(deckId, decks) {
+    var deckNameIds = getDeckNameIds(decks);
+
+    for(var parentDeckName of getParentDecks(decks[deckId].name)) {
+        // if a parent deck is collapsed, the deck is hidden
+        if(decks[deckNameIds[parentDeckName]].collapsed)
+            return true;
+    }
+    return false;
 }
 
 function getDeck(file, deckId) {
