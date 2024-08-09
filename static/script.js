@@ -40,6 +40,16 @@ window.addEventListener("DOMContentLoaded", function() {
         }
     });
     observer.observe(document.body, {childList: true, subtree: true});
+
+    // Setup Eruda if needed
+    if(new URLSearchParams(location.search).get("eruda")) {
+        var script = document.createElement("script");
+        script.src = "static/eruda.min.js";
+        script.addEventListener("load", function() {
+            eruda.init();
+        });
+        document.head.appendChild(script);
+    }
 });
 
 function sqlToDict(sql) {

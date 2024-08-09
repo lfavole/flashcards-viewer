@@ -3,6 +3,7 @@ site
 
 # static assets for development
 static/cdn.min.js
+static/eruda.min.js
 static/i18n.min.js
 static/jszip.min.js
 static/sql-wasm.js
