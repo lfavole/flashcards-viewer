@@ -1,10 +1,11 @@
 var translations = {en: {}};
 var config = {language: "en"};
-var languages = ["fr"];
+var languages = {"fr": "static/fr.js"};
+var sqlSource = "static/sql-wasm.wasm";
 
 function loadLanguage(lang) {
     lang = lang.split("-")[0];
-    if(!languages.includes(lang)) return;
+    if(!(lang in languages)) return;
 
     var script = document.createElement("script");
     script.src = "static/" + lang + ".js";
@@ -139,7 +140,7 @@ async function openAndParseFile(file) {
 
     var media = await zip.file("media").async("text");
 
-    var SQL = await initSqlJs({locateFile: f => "static/" + f});
+    var SQL = await initSqlJs({locateFile: f => f == "sql-wasm.wasm" ? sqlSource : "static/" + f});
     var db = new SQL.Database(buf);
 
     var col_info = sqlToDict(db.exec("SELECT models, decks FROM col"))[0];
