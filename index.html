@@ -31,6 +31,11 @@ x-init="setupTranslations(); addFilesTo([location.hash.substring(1)], files)">
     <!-- Be careful to dots in the translations! (= object traversing e.g. data.media) -->
     <!-- https://github.com/rehhouari/alpinejs-i18n/blob/f761b7b/src/index.ts#L74 -->
     <span x-data x-text="$t('Or drag some files into this window') + '.'"></span>
+    <br>
+    <span x-data x-text="$t('You can also load a file with its URL:')"></span>
+    <br>
+    <input type="url" x-ref="url" @keydown.enter="$refs.urlbutton.click()">
+    <button x-ref="urlbutton" @click="$refs.url.value && (addFilesTo([$refs.url.value], files), $refs.url.value = '')" x-text="$t('Load')"></button>
     <ul class="files">
         <template x-data x-for="file, fileName in files">
             <li x-text="fileName" @click="selectedFile = file"></li>
