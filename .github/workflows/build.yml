@@ -23,6 +23,9 @@ jobs:
           mkdir site
           cp -r index.html static/ site/
 
+      - name: Add hash to all static files
+        run: python add_hash.py
+
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
