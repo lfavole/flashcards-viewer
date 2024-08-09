@@ -12,10 +12,25 @@
     <script src="static/tablesort.min.js"></script>
     <script src="static/script.js"></script>
 </head>
-<body x-data="{ files: {}, selectedFile: null, selectedDeck: null, selectedNote: null, selectedTemplate: null, flipped: false }" x-init="setupTranslations()">
+<!-- If a file was given by hash, load it -->
+<body
+x-data="{ files: {}, selectedFile: null, selectedDeck: null, selectedNote: null, selectedTemplate: null, flipped: false }"
+x-init="setupTranslations(); addFilesTo([location.hash.substring(1)], files)">
+    <div class="dropzone"
+    x-data="{ draggingCount: 0 }"
+    :class="draggingCount && 'dragging'"
+    @dragover.prevent.stop="draggingCount = $event.dataTransfer.items.length || 1"
+    @dragleave.prevent.stop="draggingCount = 0"
+    @drop.prevent.stop="draggingCount = 0; addFilesTo($event.dataTransfer, files)">
+        <span x-show="draggingCount" x-text="draggingCount > 1 ? $t('Release the files!') : $t('Release the file!')"></span>
+    </div>
     <h1 x-data x-text="$t('Flashcards viewer')"></h1>
     <span x-data x-text="$t('Select file to open:')"></span>
-    <input type="file" x-init="$el.value = ''" @change="openFile($el).then(f => files[f[0]] = f[1])">
+    <input type="file" x-init="$el.value = ''" @change="$el.files.length && openFile($el.files[0]).then(f => files[f[0]] = f[1])">
+    <br>
+    <!-- Be careful to dots in the translations! (= object traversing e.g. data.media) -->
+    <!-- https://github.com/rehhouari/alpinejs-i18n/blob/f761b7b/src/index.ts#L74 -->
+    <span x-data x-text="$t('Or drag some files into this window') + '.'"></span>
     <ul class="files">
         <template x-data x-for="file, fileName in files">
             <li x-text="fileName" @click="selectedFile = file"></li>
@@ -24,14 +39,20 @@
     <template x-if="selectedFile">
         <ul class="decks">
             <template x-data x-for="deck, deckId in selectedFile.decks">
-                <template x-if="deck.mod">
-                    <li x-text="deck.name" @click="selectedDeck = getDeck(selectedFile, deckId)"></li>
-                </template>
+                <!-- https://stackoverflow.com/a/4009768 -->
+                <li
+                x-show="!isHidden(deckId, selectedFile.decks)"
+                :style="{ '--depth': deck.name.match(/::/g)?.length || 0 }">
+                    <span
+                    x-text="deck.hasChildren ? (deck.collapsed ? '+' : '-') : ''"
+                    @click="deck.collapsed = !deck.collapsed"></span>
+                    <span x-text="deck.name" @click="selectedDeck = getDeck(selectedFile, deckId)"></span>
+                </li>
             </template>
         </ul>
     </template>
     <template x-if="selectedDeck">
-        <table class="notes">
+        <table class="notes sort">
             <thead>
                 <tr>
                     <template x-data x-for="field in FIELDS">

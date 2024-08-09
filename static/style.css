@@ -1,6 +1,62 @@
 *, ::before, ::after {
     box-sizing: border-box;
 }
+
+.dropzone {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	z-index: -1;
+	display: flex;
+}
+.dropzone.dragging {
+	animation: dropzone-blink 2s linear infinite;
+}
+@keyframes dropzone-blink {
+	0%, 100% {
+		background-color: #b3e5fc;
+	}
+	50% {
+		background-color: #4fc3f7;
+	}
+}
+.dropzone span {
+	margin: auto;
+	padding: 0.25em 0.5em;
+	border-radius: 0.5em;
+	background-color: #01579b;
+	color: #ffffff;
+	font-size: 5em;
+}
+
+.files {
+	display: flex;
+	overflow-y: auto;
+    margin: 1em 0;
+    padding: 0;
+    font-size: 1.3em;
+}
+.files li {
+    display: inline-block;
+    margin: 0;
+    padding: 0.25em 0.5em;
+    background: #ddd;
+    border-radius: 0.5em 0.5em 0 0;
+}
+.files li:not(:last-of-type) {
+    margin-left: 0.1em;
+}
+
+.decks span:first-child {
+	display: inline-block;
+	box-sizing: content-box;
+    width: 1em;
+    text-align: center;
+    padding-left: calc(0.5em + var(--depth) * 1.5em);
+}
+
 table {
     border-collapse: collapse;
 }
