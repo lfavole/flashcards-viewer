@@ -2,6 +2,11 @@ import hashlib
 from pathlib import Path
 import shutil
 
+
+def relative(path):
+    return str(path.relative_to("site")).replace("\\", "/")
+
+
 repls = {}
 
 files_to_hash = [*Path("site/static").glob("**/*")]
@@ -18,7 +23,7 @@ for file in files_to_hash:
     file2 = file.with_suffix("." + hash.hexdigest()[0:8] + file.suffix)
     print(f"Copying {file} to {file2}")
     shutil.copy(file, file2)
-    repls["static/" + file.name] = "static/" + file2.name
+    repls[relative(file)] = relative(file2)
 
 for file in files_to_edit:
     if file.is_dir():
