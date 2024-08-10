@@ -54,6 +54,27 @@ for file in files_to_edit:
     if file.is_dir():
         continue
 
+    if file.suffix == ".css":
+        print(f"Minifying {file} with LightningCSS")
+        try:
+            sp.run(
+                [
+                    "lightningcss",
+                    "--minify",
+                    "--bundle",
+                    "--targets",
+                    ">= 0.5%",
+                    "--sourcemap",
+                    str(file),
+                    "--output-file",
+                    str(file),
+                ],
+                check=True,
+            )
+        except sp.CalledProcessError as exc:
+            print(f"::warning title=Minification of {file} failed, skipping file::{type(exc).__qualname__}: {exc}")
+        continue
+
     if file.suffix == ".js":
         print(f"Minifying {file} with UglifyJS")
         try:

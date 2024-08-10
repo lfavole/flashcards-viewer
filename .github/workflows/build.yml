@@ -34,7 +34,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install NPM dependencies
-        run: npm install -g uglify-js
+        run: npm install -g lightningcss-cli uglify-js
 
       - name: Install pip dependencies
         run: pip install minify-html
