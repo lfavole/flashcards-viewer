@@ -22,11 +22,18 @@ def minify_with_prefix(code, prefix, file: str | Path = "snippet"):
         return code
 
 
-def minify_js(js):
+def minify_js(js, quote=None):
+    quote_style = ""
+    if quote is not None:
+        # 1 = single quotes = to use when there are double quotes
+        # 2 = double quotes = to use when there are single quotes
+        # https://github.com/mishoo/UglifyJS#command-line-options
+        quote_style = ",quote_style=" + ("1" if quote == '"' else "2")
+
     try:
         return (
             sp.run(
-                ["uglifyjs", "--beautify", "beautify=false", "quote_style=3"],
+                ["uglifyjs", "--beautify", "beautify=false" + quote_style],
                 stdout=sp.PIPE,
                 input=js,
                 text=True,
@@ -65,7 +72,7 @@ for file in files_to_edit:
             # Minify JavaScript attributes (Alpine.js)
             data = re.sub(
                 r"=([\"'])(.*?)\1",
-                lambda match: "=" + match[1] + minify_js(match[2]) + match[1],
+                lambda match: "=" + match[1] + minify_js(match[2], match[1]) + match[1],
                 data,
             )
 
