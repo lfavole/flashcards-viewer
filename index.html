@@ -26,7 +26,7 @@ x-init="setupTranslations(); addFilesTo([location.hash.substring(1)], files)">
     </div>
     <h1 x-data x-text="$t('Flashcards viewer')"></h1>
     <span x-data x-text="$t('Select file to open:')"></span>
-    <input type="file" x-init="$el.value = ''" @change="$el.files.length && openFile($el.files[0]).then(f => files[f[0]] = f[1])">
+    <input type="file" x-init="$el.value = ''" @change="$el.files.length && addFilesTo($el.files, files)">
     <br>
     <!-- Be careful to dots in the translations! (= object traversing e.g. data.media) -->
     <!-- https://github.com/rehhouari/alpinejs-i18n/blob/f761b7b/src/index.ts#L74 -->
