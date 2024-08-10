@@ -1,9 +1,12 @@
 import subprocess as sp
 from pathlib import Path
 
-files_to_edit = [*Path("site/static").iterdir(), Path("site/index.html")]
+files_to_edit = [*Path("site/static").glob("**/*"), Path("site/index.html")]
 
 for file in files_to_edit:
+    if file.is_dir():
+        continue
+
     if file.suffix == ".html":
         print(f"Minifying {file} with html-minifier")
         sp.run(

@@ -4,10 +4,13 @@ import shutil
 
 repls = {}
 
-files_to_hash = [*Path("site/static").iterdir()]
+files_to_hash = [*Path("site/static").glob("**/*")]
 files_to_edit = [*files_to_hash, Path("site/index.html")]
 
 for file in files_to_hash:
+    if file.is_dir():
+        continue
+
     hash = hashlib.md5()
     with file.open("rb") as f:
         while (chunk := f.read(65536)) != b"":
@@ -18,6 +21,9 @@ for file in files_to_hash:
     repls["static/" + file.name] = "static/" + file2.name
 
 for file in files_to_edit:
+    if file.is_dir():
+        continue
+
     try:
         data = file.read_text("utf-8")
     except UnicodeDecodeError:
