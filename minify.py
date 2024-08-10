@@ -22,6 +22,9 @@ def minify_with_prefix(code, prefix, file: str | Path = "snippet"):
 
 
 def minify_js(js):
+    if js.startswith("await "):
+        return "await " + minify_with_prefix(js.removeprefix("await "), "<script>x=")
+
     return sorted(
         [minify_with_prefix(js, "<script>"), minify_with_prefix(js, "<script>x=")],
         key=len,
