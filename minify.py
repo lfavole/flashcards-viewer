@@ -6,7 +6,29 @@ files_to_edit = [*Path("site/static").iterdir(), Path("site/index.html")]
 for file in files_to_edit:
     if file.suffix == ".html":
         print(f"Minifying {file} with html-minifier")
-        sp.run(["html-minifier", "--collapse-whitespace", "--remove-comments", "--remove-optional-tags", "--remove-redundant-attributes", "--remove-script-type-attributes", "--remove-tag-whitespace", "--use-short-doctype", "--minify-css", "true", "--minify-js", "true", str(file), "--output", str(file)], check=True)
+        sp.run(
+            [
+                "html-minifier",
+                "--collapse-boolean-attributes",
+                "--collapse-whitespace",
+                "--decode-entities",
+                "--minify-css",
+                "true",
+                "--minify-js",
+                "true",
+                "--no-include-auto-generated-tags",
+                "--remove-comments",
+                "--remove-optional-tags",
+                "--remove-redundant-attributes",
+                "--remove-script-type-attributes",
+                "--remove-style-link-type-attributes",
+                "--remove-tag-whitespace",
+                str(file),
+                "--output",
+                str(file),
+            ],
+            check=True,
+        )
 
     elif file.suffix == ".css":
         print(f"Minifying {file} with csso")
