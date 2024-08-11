@@ -9,7 +9,6 @@ document.addEventListener("DOMContentLoaded", function() {
             dsn: SENTRY_DSN,
             integrations: [
                 Sentry.browserTracingIntegration(),
-                Sentry.browserProfilingIntegration(),
                 Sentry.replayIntegration(),
             ],
             // Performance Monitoring
