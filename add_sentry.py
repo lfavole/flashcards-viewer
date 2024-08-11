@@ -1,17 +1,22 @@
 import os
-import re
 from pathlib import Path
 
-file = Path("site/index.html")
-data = file.read_text("utf-8")
+index_file = Path("site/index.html")
+sentry_file = Path("site/static/sentry.js")
+index_data = index_file.read_text("utf-8")
+sentry_data = sentry_file.read_text("utf-8")
 
-match = re.match(r"^https?://(?:(\w+)@)?\w+\.ingest(?:\.([a-z]+))?\.sentry\.io/\d+", os.environ.get("SENTRY_DSN", ""))
-if match:
-    script_url = f"https://js{'-' + match[2] if match[2] else ''}.sentry-cdn.com/{match[1]}.min.js"
-    data = data.replace(
+SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+if SENTRY_DSN:
+    print("Adding Sentry script in head")
+    index_data = index_data.replace(
         "</head>",
-        f'    <script src="{script_url}" crossorigin="anonymous" defer></script>\n</head>',
+        '    <script src="static/sentry.js" async></script></script>\n</head>',
     )
-    file.write_text(data, "utf-8")
+    index_file.write_text(index_data, "utf-8")
+
+    print("Adding Sentry DSN in script")
+    sentry_data = sentry_data.replace('SENTRY_DSN = ""', f'SENTRY_DSN = "{SENTRY_DSN}"')
+    sentry_file.write_text(sentry_data, "utf-8")
 else:
-    print("::warning title=Sentry DSN error::Could not extract the ID from the Sentry DSN")
+    print("::warning title=No Sentry DSN available::Skipping Sentry DSN injection")
