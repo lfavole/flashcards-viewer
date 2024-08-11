@@ -5,23 +5,6 @@ import subprocess as sp
 import minify_html
 
 
-def minify_with_prefix(code, prefix, file: str | Path = "snippet"):
-    try:
-        return minify_html.minify(
-            prefix + code,
-            do_not_minify_doctype=True,
-            minify_css=True,
-            minify_js=True,
-        ).removeprefix(prefix)
-    except BaseException as exc:
-        print(
-            f"::warning title=Minification of {file} failed"
-            + (", skipping file" if file != "snippet" else "")
-            + f"::{type(exc).__qualname__}: {exc}"
-        )
-        return code
-
-
 def _minify_js(js, quote=None):
     quote_style = []
     if quote is not None:
@@ -100,10 +83,8 @@ for file in files_to_edit:
             print(f"::warning title=Minification of {file} failed, skipping file::{type(exc).__qualname__}: {exc}")
         continue
 
-    prefix = {".html": "", ".css": "<style>", ".js": "<script>"}.get(file.suffix)
-
-    if prefix is not None:
-        print(f"Minifying {file}")
+    if file.suffix == ".html":
+        print(f"Minifying {file} with minify-html")
 
         data = file.read_text("utf-8")
         if file.suffix == ".html":
@@ -111,7 +92,15 @@ for file in files_to_edit:
             # https://html.spec.whatwg.org/multipage/syntax.html#syntax-attribute-name
             data = re.sub(r"([^\s\"'>/=]+)=([\"'])(.*?)\2", minify_attribute, data)
 
-        data = minify_with_prefix(data, prefix, file)
+        try:
+            data = minify_html.minify(
+                data,
+                do_not_minify_doctype=True,
+                minify_css=True,
+                minify_js=True,
+            )
+        except BaseException as exc:
+            print(f"::warning title=Minification of {file} failed::{type(exc).__qualname__}: {exc}")
 
         file.write_text(data, "utf-8")
 
