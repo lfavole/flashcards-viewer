@@ -5,7 +5,7 @@ import subprocess as sp
 import minify_html
 
 
-def _minify_js(js, quote=None, expression=False):
+def _minify_js(js, quote=None, expression=False, recursive=False):
     expression_opt = ["--expression"] if expression else []
     quote_style = []
     if quote is not None:
@@ -13,6 +13,9 @@ def _minify_js(js, quote=None, expression=False):
         # 2 = double quotes = to use when there are single quotes
         # https://github.com/mishoo/UglifyJS#command-line-options
         quote_style = ["--beautify", "beautify=false,quote_style=" + ("1" if quote == '"' else "2")]
+
+    if recursive:
+        js = "(async()=>{" + js + "})()"
 
     try:
         DOUBLE_QUOTE = '"'
@@ -34,22 +37,23 @@ def _minify_js(js, quote=None, expression=False):
             .rstrip(";")
         )
         print(f"::debug::Output: {ret}")
+        if recursive:
+            ret = ret.removeprefix("(async()=>").removeprefix("{").removesuffix(")()").removesuffix("}")
         return ret
     except sp.CalledProcessError as exc:
         print(f"::warning title=Minification of snippet '{js}' failed::{type(exc).__qualname__}: {exc}")
+        if not recursive:
+            return _minify_js(js, quote, expression, recursive=True)
         return js
 
 
 def minify_js(js, quote=None, expression=False, recursive=False):
-    if expression:
-        ret = _minify_js(js, quote, expression)
-    else:
-        ret = sorted([_minify_js(js, quote), _minify_js(js, quote, expression=True)], key=len)[0]
+    ret = _minify_js(js, quote, expression)
     if " " not in ret and ('"' in ret or "'" in ret) and not recursive:
         # if there are no spaces but there are quotes, re-minify with the optimal quotes
         # (because minify-html will remove the quotes)
         print("::debug::Re-minifying with the optimal quotes")
-        return minify_js(js, recursive=True)
+        return minify_js(js, expression=expression, recursive=True)
     return ret
 
 
@@ -57,7 +61,7 @@ def minify_attribute(match):
     name, quote, value = match.groups()
     if not any(name.startswith(prefix) for prefix in (":", "@", "x-", "on")):
         return match[0]
-    # Force expression mode for some attributes
+    # Use expression mode only for some attributes
     # e.g. a&&"b" in non-expression mode evaluates to a (because "b" is truthy)
     expression = name.startswith("x-") and name not in {"x-init", "x-effect"} or name[0] == ":"
     return f"{name}={quote}{minify_js(value, quote, expression)}{quote}"
