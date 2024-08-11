@@ -24,7 +24,7 @@ urls = [
 
 for url in urls:
     print(f"Downloading {url}... ", end="")
-    output = base_path / basename(url)
+    output = base_path / ("i18n.min.js" if "alpinejs-i18n" in url else basename(url))
     with output.open("wb") as f:
         resp = requests.get(url, stream=True)
         resp.raise_for_status()
