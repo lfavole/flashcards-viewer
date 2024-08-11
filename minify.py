@@ -56,6 +56,13 @@ def minify_js(js, quote=None, recursive=False):
     return ret
 
 
+def minify_attribute(match):
+    name, quote, value = match.groups()
+    if not any(name.startswith(prefix) for prefix in (":", "@", "x-", "on")):
+        return match[0]
+    return f"{name}={quote}{minify_js(value, quote)}{quote}"
+
+
 files_to_edit = [*Path("site/static").glob("**/*"), Path("site/index.html")]
 
 for file in files_to_edit:
@@ -101,11 +108,8 @@ for file in files_to_edit:
         data = file.read_text("utf-8")
         if file.suffix == ".html":
             # Minify JavaScript attributes (Alpine.js)
-            data = re.sub(
-                r"=([\"'])(.*?)\1",
-                lambda match: "=" + match[1] + minify_js(match[2], match[1]) + match[1],
-                data,
-            )
+            # https://html.spec.whatwg.org/multipage/syntax.html#syntax-attribute-name
+            data = re.sub(r"([^\s\"'>/=]+)=([\"'])(.*?)\2", minify_attribute, data)
 
         data = minify_with_prefix(data, prefix, file)
 
