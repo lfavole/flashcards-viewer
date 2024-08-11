@@ -47,14 +47,14 @@ def _minify_js(js, quote=None, expression=False, recursive=False):
         return js
 
 
-def minify_js(js, quote=None, expression=False, recursive=False):
+def minify_js_with_quotes(js, quote=None, expression=False, recursive=False):
     ret = _minify_js(js, quote, expression)
     if " " not in ret and ('"' in ret or "'" in ret) and not recursive:
         # if there are no spaces but there are quotes, re-minify with the optimal quotes
         # (because minify-html will remove the quotes)
         print("::debug::Re-minifying with the optimal quotes")
-        return minify_js(js, expression=expression, recursive=True)
-    return ret
+        return minify_js_with_quotes(js, expression=expression, recursive=True)
+    return quote or "", ret
 
 
 def minify_attribute(match):
@@ -64,7 +64,11 @@ def minify_attribute(match):
     # Use expression mode only for some attributes
     # e.g. a&&"b" in non-expression mode evaluates to a (because "b" is truthy)
     expression = name.startswith("x-") and name not in {"x-init", "x-effect"} or name[0] == ":"
-    return f"{name}={quote}{minify_js(value, quote, expression)}{quote}"
+    # Get the new quote to use
+    # Don't reuse the original quotes because we may end up with:
+    # <a b="c" d="e="f""> which minifies to: <a b=c d=e= f""> (invalid HTML)
+    quote, value = minify_js_with_quotes(value, quote, expression)
+    return f"{name}={quote}{value}{quote}"
 
 
 files_to_edit = [*Path("site/static").glob("**/*"), Path("site/index.html")]
