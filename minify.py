@@ -5,7 +5,8 @@ import subprocess as sp
 import minify_html
 
 
-def _minify_js(js, quote=None):
+def _minify_js(js, quote=None, expression=False):
+    expression_opt = ["--expression"] if expression else []
     quote_style = []
     if quote is not None:
         # 1 = single quotes = to use when there are double quotes
@@ -14,9 +15,15 @@ def _minify_js(js, quote=None):
         quote_style = ["--beautify", "beautify=false,quote_style=" + ("1" if quote == '"' else "2")]
 
     try:
-        return (
+        DOUBLE_QUOTE = '"'
+        print(
+            f"::debug::Minifying {js}"
+            + (" in expression mode" if expression else "")
+            + (f" with {'double' if quote == DOUBLE_QUOTE else 'single'} quotes" if quote is not None else "")
+        )
+        ret = (
             sp.run(
-                ["uglifyjs", "--compress", "--module", *quote_style],
+                ["uglifyjs", "--compress", "--module", *expression_opt, *quote_style],
                 stdout=sp.PIPE,
                 input=js,
                 text=True,
@@ -26,15 +33,19 @@ def _minify_js(js, quote=None):
             .stdout.rstrip()
             .rstrip(";")
         )
+        print(f"::debug::Output: {ret}")
+        return ret
     except sp.CalledProcessError as exc:
         print(f"::warning title=Minification of snippet '{js}' failed::{type(exc).__qualname__}: {exc}")
         return js
 
 
 def minify_js(js, quote=None, recursive=False):
-    ret = sorted([_minify_js(js, quote), _minify_js("x=" + js, quote).removeprefix("x=")], key=len)[0]
+    ret = sorted([_minify_js(js, quote), _minify_js(js, quote, expression=True)], key=len)[0]
     if " " not in ret and ('"' in ret or "'" in ret) and not recursive:
         # if there are no spaces but there are quotes, re-minify with the optimal quotes
+        # (because minify-html will remove the quotes)
+        print("::debug::Re-minifying with the optimal quotes")
         return minify_js(js, recursive=True)
     return ret
 
@@ -78,7 +89,11 @@ for file in files_to_edit:
     if file.suffix == ".js":
         print(f"Minifying {file} with UglifyJS")
         try:
-            sp.run(["uglifyjs", str(file), "--compress", "--source-map", "--output", str(file)], cwd=Path("site"), check=True)
+            sp.run(
+                ["uglifyjs", str(file), "--compress", "--source-map", "--output", str(file)],
+                cwd=Path("site"),
+                check=True,
+            )
         except sp.CalledProcessError as exc:
             print(f"::warning title=Minification of {file} failed, skipping file::{type(exc).__qualname__}: {exc}")
         continue
