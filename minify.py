@@ -40,8 +40,11 @@ def _minify_js(js, quote=None, expression=False):
         return js
 
 
-def minify_js(js, quote=None, recursive=False):
-    ret = sorted([_minify_js(js, quote), _minify_js(js, quote, expression=True)], key=len)[0]
+def minify_js(js, quote=None, expression=False, recursive=False):
+    if expression:
+        ret = _minify_js(js, quote, expression)
+    else:
+        ret = sorted([_minify_js(js, quote), _minify_js(js, quote, expression=True)], key=len)[0]
     if " " not in ret and ('"' in ret or "'" in ret) and not recursive:
         # if there are no spaces but there are quotes, re-minify with the optimal quotes
         # (because minify-html will remove the quotes)
@@ -54,7 +57,10 @@ def minify_attribute(match):
     name, quote, value = match.groups()
     if not any(name.startswith(prefix) for prefix in (":", "@", "x-", "on")):
         return match[0]
-    return f"{name}={quote}{minify_js(value, quote)}{quote}"
+    # Force expression mode for some attributes
+    # e.g. a&&"b" in non-expression mode evaluates to a (because "b" is truthy)
+    expression = name.startswith("x-") and name not in {"x-init", "x-effect"} or name[0] == ":"
+    return f"{name}={quote}{minify_js(value, quote, expression)}{quote}"
 
 
 files_to_edit = [*Path("site/static").glob("**/*"), Path("site/index.html")]
@@ -105,7 +111,7 @@ for file in files_to_edit:
         if file.suffix == ".html":
             # Minify JavaScript attributes (Alpine.js)
             # https://html.spec.whatwg.org/multipage/syntax.html#syntax-attribute-name
-            data = re.sub(r"([^\s\"'>/=]+)=([\"'])(.*?)\2", minify_attribute, data)
+            data = re.sub(r"(?<=[\"'\s])([^\s\"'>/=]+?)=([\"'])(.*?)\2", minify_attribute, data)
 
         try:
             data = minify_html.minify(
