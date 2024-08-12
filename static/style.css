@@ -1,17 +1,30 @@
 *, ::before, ::after {
     box-sizing: border-box;
 }
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    border: 0;
+}
 
-.dropzone {
-	position: absolute;
+.dropzone div {
+	position: fixed;
 	left: 0;
 	right: 0;
 	top: 0;
 	bottom: 0;
 	z-index: -1;
-	display: flex;
 }
-.dropzone.dragging {
+.dropzone div.zone {
+	z-index: 1;
+	pointer-events: none;
+}
+.dropzone div.dragging {
 	animation: dropzone-blink 2s linear infinite;
 }
 @keyframes dropzone-blink {
@@ -23,12 +36,19 @@
 	}
 }
 .dropzone span {
-	margin: auto;
+	z-index: 1;
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	pointer-events: none;
 	padding: 0.25em 0.5em;
 	border-radius: 0.5em;
 	background-color: #01579b;
+	box-shadow: 0 0 0.5em #01579b;
 	color: #ffffff;
 	font-size: 5em;
+	text-align: center;
 }
 
 .files {
@@ -46,7 +66,7 @@
     border-radius: 0.5em 0.5em 0 0;
 }
 .files li:not(:last-of-type) {
-    margin-left: 0.1em;
+    margin-right: 0.1em;
 }
 
 .decks span:first-child {

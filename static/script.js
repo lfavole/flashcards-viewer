@@ -67,7 +67,8 @@ function sqlToDict(sql) {
 }
 
 function _recursiveOpenEntry(item, openFunc) {
-    item.file(openFunc);
+    if(item.isFile)
+        item.file(openFunc);
 
     if (item.isDirectory) {
         var directoryReader = item.createReader();
@@ -86,7 +87,7 @@ async function _recursiveOpenHandle(item, openFunc) {
     }
 }
 
-async function recursiveOpen(dataTransfer, openFunc) {
+async function recursiveOpen(dataTransfer, openFunc, test = false) {
     // Array of files or URLs
     if(dataTransfer.length !== undefined) {
         [...dataTransfer].forEach(openFunc);
@@ -101,6 +102,10 @@ async function recursiveOpen(dataTransfer, openFunc) {
 
     for(var item of dataTransfer.items) {
         if(item.kind == "file") {
+            if(test) {
+                openFunc();
+                continue;
+            }
             var entry = item.getAsFileSystemHandle?.();
             if(entry) {
                 await _recursiveOpenHandle(entry, openFunc);
@@ -116,6 +121,13 @@ async function recursiveOpen(dataTransfer, openFunc) {
             item.getAsString(openFunc);
         }
     }
+}
+
+async function getCount(dataTransferOrInput) {
+    var count = 0;
+    var open = () => count++;
+    await recursiveOpen(dataTransferOrInput, open, true);
+    return count;
 }
 
 async function addFilesTo(dataTransferOrInput, files) {
@@ -148,7 +160,7 @@ async function openAndParseFile(file) {
     // https://dba.stackexchange.com/a/315294
     var notes = sqlToDict(db.exec("SELECT notes.mid, notes.mod, notes.tags, notes.flds, notes.sfld, cards.did FROM notes LEFT JOIN cards ON notes.id = cards.nid AND cards.id = (SELECT id FROM cards WHERE notes.id = cards.nid LIMIT 1)"));
     return {
-        models: JSON.parse(col_info.models),
+        models: cleanupModels(JSON.parse(col_info.models)),
         decks: cleanupDecks(JSON.parse(col_info.decks), notes),
         notes: notes,
         media: JSON.parse(media),
@@ -190,6 +202,18 @@ function getDeckNameIds(decks) {
     return ret;
 }
 
+function cleanupModels(models) {
+    /**
+     * Cleanup a models object: add an ID to the templates.
+     */
+    for(var model of Object.values(models)) {
+        for(var [id, template] of Object.entries(model.tmpls)) {
+            template.id = id;
+        }
+    }
+    return models;
+}
+
 function cleanupDecks(decks, notes) {
     /**
      * Cleanup a decks list:
@@ -200,7 +224,7 @@ function cleanupDecks(decks, notes) {
      * * Make the list reactive
      */
     // Remove the "Default" deck
-    if(decks[1] && decks[1].name == "Default" && !getDeck({notes: notes}, 1).length)
+    if(decks[1] && decks[1].name == "Default" && !getNotes({notes: notes}, {id: 1}).length)
         delete decks[1];
 
     // Build a list of deck names
@@ -228,9 +252,10 @@ function cleanupDecks(decks, notes) {
     for(var deckId in decks) {
         deckNameIds[decks[deckId].name] = +deckId;
     }
-    // Add parent deck IDs
+    // Add deck IDs and parent deck IDs
     for(var deckId in decks) {
         var deckName = decks[deckId].name
+        decks[deckId].id = deckId;
         decks[deckId].hasChildren = !!deckNames.filter(name => name.startsWith(deckName + "::")).length;
         decks[deckId].parentId = deckName.includes("::") ? deckNameIds[deckNameToTry.replace(/::.*?$/, "")] : 0;
     }
@@ -245,10 +270,10 @@ function cleanupDecks(decks, notes) {
     return decks;
 }
 
-function isHidden(deckId, decks) {
+function isHidden(deck, decks) {
     var deckNameIds = getDeckNameIds(decks);
 
-    for(var parentDeckName of getParentDecks(decks[deckId].name)) {
+    for(var parentDeckName of getParentDecks(decks[deck.id].name)) {
         // if a parent deck is collapsed, the deck is hidden
         if(decks[deckNameIds[parentDeckName]].collapsed)
             return true;
@@ -256,8 +281,8 @@ function isHidden(deckId, decks) {
     return false;
 }
 
-function getDeck(file, deckId) {
-    return file.notes.filter(e => e.did == +deckId);
+function getNotes(file, deck) {
+    return file.notes.filter(e => e.did == +deck.id);
 }
 
 function stripHTML(html) {
@@ -280,9 +305,9 @@ var FIELDS = {
 
 function getField(note, field, file) {
     if(field == "question")
-        return stripHTML(render(file.models[note.mid], 0, note, false, true));
+        return stripHTML(render(file.models[note.mid], file.models[note.mid].tmpls[0], note, false, true));
     if(field == "answer")
-        return stripHTML(render(file.models[note.mid], 0, note, true, true));
+        return stripHTML(render(file.models[note.mid], file.models[note.mid].tmpls[0], note, true, true));
     return note[field];
 }
 
@@ -312,21 +337,21 @@ async function patchMediaURLs(html, file) {
     return ret;
 }
 
-function render(model, id, note, flipped, textOnly) {
-    var html = flipped ? model.tmpls[id].afmt : model.tmpls[id].qfmt;
+function render(model, template, note, flipped, textOnly) {
+    var html = flipped ? template.afmt : template.qfmt;
     var fields = model.flds.map(f => f.name);
     var note_fields = note.flds.split("\x1f");
     html = html.replace(/\{\{\s*([^}]+?)\s*\}\}/g, function(_, param) {
         if(param == "FrontSide" && flipped) {
-            return render(model, id, note, false, textOnly);
+            return render(model, template, note, false, textOnly);
         }
         return note_fields[fields.indexOf(param)];
     });
     return textOnly ? stripHTML(html) : "<style>" + model.css + "</style>" + html;
 }
 
-async function renderWithMedia(model, id, note, file, flipped) {
-    return await patchMediaURLs(render(model, id, note, flipped), file);
+async function renderWithMedia(model, template, note, file, flipped) {
+    return await patchMediaURLs(render(model, template, note, flipped), file);
 }
 
 document.addEventListener("alpine-i18n:ready", function () {

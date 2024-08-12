@@ -1,0 +1,28 @@
+.icon {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    background-position: center;
+    background-size: contain;
+    background-repeat: no-repeat;
+    color: transparent;
+    /* https://stackoverflow.com/a/471538 */
+    text-indent: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com
+License - https://fontawesome.com/license/free
+Copyright 2024 Fonticons, Inc.
+
+Compressed with https://svgomg.net/
+*/
+.icon.open {
+    /* folder-open */
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><path d="M89 224 0 376V96c0-35 29-64 64-64h118c17 0 33 7 45 19l26 26c12 12 29 19 46 19h117c35 0 64 29 64 64v32H144c-23 0-44 12-55 32zm27 16c6-10 17-16 28-16h400c12 0 22 6 28 16s5 22 0 32L460 464c-6 10-17 16-28 16H32c-11 0-22-6-28-16s-5-22 0-32l112-192z"/></svg>');
+}
+.icon.link {
+    /* link */
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><path d="M580 268A145 145 0 0 0 393 48l-1 1a32 32 0 1 0 37 52l2-1a80 80 0 0 1 104 122L422 335a81 81 0 0 1-122-104l1-2a32 32 0 0 0-52-37l-1 2a144 144 0 0 0 220 186l112-112zM60 244a145 145 0 0 0 187 220l1-1a32 32 0 1 0-37-52l-2 1a80 80 0 0 1-103-122l112-113a81 81 0 0 1 122 104l-1 2a32 32 0 0 0 52 37l1-2a144 144 0 0 0-219-186L60 244z"/></svg>');
+}

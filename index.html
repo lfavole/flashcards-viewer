@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flashcards viewer</title>
     <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="static/icons.css">
     <script src="static/ext/cdn.min.js" defer></script>
     <script src="static/ext/i18n.min.js"></script>
     <script src="static/ext/jszip.min.js"></script>
@@ -12,46 +13,70 @@
     <script src="static/ext/tablesort.min.js"></script>
     <script src="static/script.js"></script>
 </head>
-<!-- If a file was given by hash, load it -->
 <body
 x-data="{ files: {}, selectedFile: null, selectedDeck: null, selectedNote: null, selectedTemplate: null, flipped: false }"
-x-init="setupTranslations(); addFilesTo([location.hash.substring(1)], files)">
+x-init="
+setupTranslations();
+// If a file was given by hash, load it
+addFilesTo([location.hash.substring(1)], files);
+
+// Remove loose objects just before the last file is removed
+$data.cleanupFiles = () => {
+    // If there is only one file (after removing = 0)...
+    if(Object.keys(files).length == 1)
+        // ...remove everything
+        selectedTemplate = null,
+        selectedNote = null,
+        selectedDeck = null,
+        selectedFile = null;
+}
+
+// Automatically select the first object if there is only one object
+var selectFirst = obj => Object.keys(obj).length == 1 ? obj[Object.keys(obj)[0]] : false;
+Alpine.effect(() => {if(Object.keys(files).length) selectedFile = selectedFile || selectFirst(files)});
+Alpine.effect(() => {if(selectedFile) selectedDeck = selectedDeck || selectFirst(selectedFile.decks)});
+Alpine.effect(() => {if(selectedDeck) selectedNote = selectedNote || selectFirst(selectedDeck)});
+Alpine.effect(() => {if(selectedNote) selectedTemplate = selectedTemplate || selectFirst(selectedFile.models[selectedNote.mid].tmpls)});
+">
     <div class="dropzone"
-    x-data="{ draggingCount: 0 }"
-    :class="draggingCount && 'dragging'"
-    @dragover.prevent.stop="draggingCount = $event.dataTransfer.items.length || 1"
-    @dragleave.prevent.stop="draggingCount = 0"
-    @drop.prevent.stop="draggingCount = 0; addFilesTo($event.dataTransfer, files)">
+    x-data="{ draggingCount: 0 }">
+        <div class="zone" :class="draggingCount && 'dragging'"></div>
         <span x-show="draggingCount" x-text="draggingCount > 1 ? $t('Release the files!') : $t('Release the file!')"></span>
+        <div
+        @dragover.prevent.stop="draggingCount = await getCount($event.dataTransfer) || 1"
+        @dragleave.prevent.stop="draggingCount = 0"
+        @drop.prevent.stop="draggingCount = 0; addFilesTo($event.dataTransfer, files)"></div>
     </div>
     <h1 x-data x-text="$t('Flashcards viewer')"></h1>
-    <span x-data x-text="$t('Select file to open:')"></span>
-    <input type="file" x-init="$el.value = ''" @change="$el.files.length && addFilesTo($el.files, files)">
-    <br>
     <!-- Be careful to dots in the translations! (= object traversing e.g. data.media) -->
     <!-- https://github.com/rehhouari/alpinejs-i18n/blob/f761b7b/src/index.ts#L74 -->
-    <span x-data x-text="$t('Or drag some files into this window') + '.'"></span>
-    <br>
-    <span x-data x-text="$t('You can also load a file with its URL:')"></span>
-    <br>
-    <input type="url" x-ref="url" @keydown.enter="$refs.urlbutton.click()">
-    <button x-ref="urlbutton" @click="$refs.url.value && (addFilesTo([$refs.url.value], files), $refs.url.value = '')" x-text="$t('Load')"></button>
+    <span x-data x-text="$t('Drag some files into this window or use the above buttons') + '.'"></span>
     <ul class="files">
+        <li>
+            <a class="icon open" href="#" @click.prevent="$refs.file.click()" :title="$t('Open')" x-text="$t('Open')"></a>
+            <input class="sr-only" type="file" accept=".apkg" x-ref="file" x-init="$el.value = ''" @change="addFilesTo($el.files, files); selectedFile = files.length == 1 ? files[0] : selectedFile">
+        </li>
+        <li>
+            <a class="icon link" href="#" @click.prevent="selectedFile = addFilesTo($el.files, files), files.length == 1 ? files[0] : selectedFile" :title="$t('Open URL')" x-text="$t('Open URL')"></a>
+        </li>
         <template x-data x-for="file, fileName in files">
-            <li x-text="fileName" @click="selectedFile = file"></li>
+            <li>
+                <a href="#" x-text="fileName" @click.prevent="selectedFile = file"></a>
+                <a href="#" @click.prevent="cleanupFiles(); delete files[fileName]" :title="$t('Close')">×</a>
+            </li>
         </template>
     </ul>
     <template x-if="selectedFile">
         <ul class="decks">
-            <template x-data x-for="deck, deckId in selectedFile.decks">
+            <template x-data x-for="deck in selectedFile.decks">
                 <!-- https://stackoverflow.com/a/4009768 -->
                 <li
-                x-show="!isHidden(deckId, selectedFile.decks)"
+                x-show="!isHidden(deck, selectedFile.decks)"
                 :style="{ '--depth': deck.name.match(/::/g)?.length || 0 }">
                     <span
                     x-text="deck.hasChildren ? (deck.collapsed ? '+' : '-') : ''"
                     @click="deck.collapsed = !deck.collapsed"></span>
-                    <span x-text="deck.name" @click="selectedDeck = getDeck(selectedFile, deckId)"></span>
+                    <span x-text="deck.name" @click="selectedDeck = deck"></span>
                 </li>
             </template>
         </ul>
@@ -66,7 +91,7 @@ x-init="setupTranslations(); addFilesTo([location.hash.substring(1)], files)">
                 </tr>
             </thead>
             <tbody>
-                <template x-data x-for="note in selectedDeck">
+                <template x-data x-for="note in getNotes(selectedFile, selectedDeck)">
                     <tr @click="selectedNote = note">
                         <template x-data x-for="field, fieldName in FIELDS">
                             <td x-text="getField(note, fieldName, selectedFile)"></td>
@@ -78,12 +103,12 @@ x-init="setupTranslations(); addFilesTo([location.hash.substring(1)], files)">
     </template>
     <template x-if="selectedNote">
         <ul class="templates">
-            <template x-data x-for="template in selectedFile.models[selectedNote.mid].tmpls.map((e, i) => [e, i])">
-                <li x-text="template[0].name" @click="selectedTemplate = template[1]"></li>
+            <template x-data x-for="template in selectedFile.models[selectedNote.mid].tmpls">
+                <li x-text="template.name" @click="selectedTemplate = template"></li>
             </template>
         </ul>
     </template>
-    <template x-if="selectedTemplate !== null">
+    <template x-if="selectedTemplate">
         <div>
             <div class="card" x-html="await renderWithMedia(selectedFile.models[selectedNote.mid], selectedTemplate, selectedNote, selectedFile, flipped)"></div>
             <button @click="flipped = !flipped" x-text="$t('Flip')"></button>

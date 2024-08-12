@@ -119,7 +119,7 @@ for file in files_to_edit:
         if file.suffix == ".html":
             # Minify JavaScript attributes (Alpine.js)
             # https://html.spec.whatwg.org/multipage/syntax.html#syntax-attribute-name
-            data = re.sub(r"(?<=[\"'\s])([^\s\"'>/=]+?)=([\"'])(.*?)\2", minify_attribute, data)
+            data = re.sub(r"(?s)(?<=[\"'\s])([^\s\"'>/=]+?)=([\"'])(.*?)\2", minify_attribute, data)
 
         try:
             data = minify_html.minify(
