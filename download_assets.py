@@ -21,15 +21,27 @@ urls = [
     "https://cdn.jsdelivr.net/npm/alpinejs-i18n@2/dist/cdn.min.js",
     "https://cdn.jsdelivr.net/npm/eruda@3/eruda.min.js",
     "https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js",
+    "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js",
     "https://cdn.jsdelivr.net/npm/sql.js@1/dist/sql-wasm.js",
     "https://cdn.jsdelivr.net/npm/sql.js@1/dist/sql-wasm.wasm",
     "https://cdn.jsdelivr.net/npm/tablesort@5/dist/tablesort.min.js",
 ]
+# Save some files with better filenames
+mappings = {
+    "alpinejs-i18n": "i18n.min.js",
+    "mathjax": "mathjax.min.js",
+}
 
 for url in urls:
     print(f"Downloading {url} ... ", end="")
-    # Download alpine-i18n to i18n.min.js because cdn.min.js is already Alpine.js
-    output = base_path / ("i18n.min.js" if "alpinejs-i18n" in url else basename(url))
+
+    name = basename(url)
+    for item, repl in mappings.items():
+        if item in url:
+            name = repl
+            break
+
+    output = base_path / name
     with output.open("wb") as f:
         resp = requests.get(url, stream=True)
         resp.raise_for_status()

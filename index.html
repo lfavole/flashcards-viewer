@@ -11,6 +11,7 @@
     <script src="static/ext/jszip.min.js"></script>
     <script src="static/ext/sql-wasm.js"></script>
     <script src="static/ext/tablesort.min.js"></script>
+    <script src="static/mathjax.js"></script>
     <script src="static/script.js"></script>
 </head>
 <body
@@ -112,7 +113,11 @@ Alpine.effect(() => {if(selectedNote) selectedTemplate = selectedFile.models[sel
     </template>
     <template x-if="selectedTemplate">
         <div>
-            <div class="card" x-html="await renderWithMedia(selectedFile.models[selectedNote.mid], selectedTemplate, selectedNote, selectedFile, flipped)"></div>
+            <div class="card"
+            x-html="
+            await renderWithMedia(selectedFile.models[selectedNote.mid], selectedTemplate, selectedNote, selectedFile, flipped);
+            $nextTick(() => typeset($el));
+            "></div>
             <button @click="flipped = !flipped" x-text="$t('Flip')"></button>
         </div>
     </template>

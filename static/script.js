@@ -351,6 +351,12 @@ async function renderWithMedia(model, template, note, file, flipped) {
     return await patchMediaURLs(render(model, template, note, flipped), file);
 }
 
+var promise = Promise.resolve();
+
+async function typeset(...elements) {
+    return await promise.then(() => MathJax.typesetPromise(...elements));
+}
+
 document.addEventListener("alpine-i18n:ready", function () {
     // Setup translations
     AlpineI18n.create("en", translations);
