@@ -29,8 +29,9 @@ def _minify_js(js: str, quote: str | None = None, expression=False, try_async=Fa
 
     try:
         DOUBLE_QUOTE = '"'
+        replace_newlines = lambda text: text.replace('\n', '\\n')
         print(
-            f"::debug::Minifying {js}"
+            f"::debug::Minifying {replace_newlines(js)}"
             + (" in expression mode" if expression else "")
             + (f" with {'double' if quote == DOUBLE_QUOTE else 'single'} quotes" if quote is not None else "")
         )
