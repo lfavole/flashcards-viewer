@@ -1,3 +1,7 @@
+"""
+Minify all the files in the `site/` directory with minify-html, LightningCSS or UglifyJS.
+"""
+
 from pathlib import Path
 import re
 import subprocess as sp
@@ -5,7 +9,12 @@ import subprocess as sp
 import minify_html
 
 
-def _minify_js(js, quote=None, expression=False, recursive=False):
+def _minify_js(js: str, quote: str | None = None, expression=False, try_async=False) -> str:
+    """
+    Return a minified version of the given JavaScript code.
+
+    The function handles forcing a specific quote, expression mode and `async` expressions.
+    """
     expression_opt = ["--expression"] if expression else []
     quote_style = []
     if quote is not None:
@@ -14,7 +23,7 @@ def _minify_js(js, quote=None, expression=False, recursive=False):
         # https://github.com/mishoo/UglifyJS#command-line-options
         quote_style = ["--beautify", "beautify=false,quote_style=" + ("1" if quote == '"' else "2")]
 
-    if recursive:
+    if try_async:
         js = "(async()=>{" + js + "})()"
 
     try:
@@ -37,45 +46,90 @@ def _minify_js(js, quote=None, expression=False, recursive=False):
             .rstrip(";")
         )
         print(f"::debug::Output: {ret}")
-        if recursive:
-            ret = ret.removeprefix("(async()=>").removeprefix("{").removesuffix(")()").removesuffix("}")
+        if try_async:
+            # Remove in two steps because { and } may have been stripped
+            # e.g. (async () => { {a: "b"} })()
+            ret = ret.removeprefix("(async()=>{").removesuffix("})()")
         return ret
     except sp.CalledProcessError as exc:
         print(f"::warning title=Minification of snippet '{js}' failed::{type(exc).__qualname__}: {exc}")
-        if not recursive:
-            return _minify_js(js, quote, expression, recursive=True)
+        if not try_async:
+            return _minify_js(js, quote, expression, try_async=True)
         return js
 
 
-def minify_js_with_quotes(js, quote=None, expression=False, recursive=False):
-    ret = _minify_js(js, quote, expression)
-    if " " not in ret and ('"' in ret or "'" in ret) and not recursive:
-        # if there are no spaces but there are quotes, re-minify with the optimal quotes
+def minify_js_with_quotes(js: str, expression=False):
+    """
+    Return a minified JavaScript attribute with its quotes.
+
+    The function tries with single, double and no quotes to get the shortest output.
+    """
+    js, quote = sorted(
+        [
+            # Put double quotes first to select them if the length is the same
+            (_minify_js(js, '"', expression), '"'),
+            (_minify_js(js, "'", expression), "'"),
+        ],
+        key=lambda item: len(item[0]),
+    )[0]
+    if " " not in js and ('"' in js or "'" in js):
+        # If there are no spaces but there are quotes, re-minify with the optimal quotes
         # (because minify-html will remove the quotes)
         print("::debug::Re-minifying with the optimal quotes")
-        return minify_js_with_quotes(js, expression=expression, recursive=True)
-    return quote or "", ret
+        return _minify_js(js, expression=expression), ""
+    return js, quote
 
 
-def minify_attribute(match):
+def minify_attribute(match: re.Match[str]):
+    """
+    Given a `re.Match` object with (name, quote, value) groups,
+    return the minified attribute (by minifying JS and optionally removing quotes).
+    """
     name, quote, value = match.groups()
     if not any(name.startswith(prefix) for prefix in (":", "@", "x-", "on")):
         return match[0]
+
     # Use expression mode only for some attributes
+    # (Alpine.js directives except x-init, x-effect and attributes)
     # e.g. a&&"b" in non-expression mode evaluates to a (because "b" is truthy)
     expression = name.startswith("x-") and name not in {"x-init", "x-effect"} or name[0] == ":"
-    # Get the new quote to use
+
+    # Get the quote to use
     # Don't reuse the original quotes because we may end up with:
     # <a b="c" d="e="f""> which minifies to: <a b=c d=e= f""> (invalid HTML)
-    quote, value = minify_js_with_quotes(value, quote, expression)
+    value, quote = minify_js_with_quotes(value, expression)
     return f"{name}={quote}{value}{quote}"
 
 
 files_to_edit = [*Path("site/static").glob("**/*"), Path("site/index.html")]
 
 for file in files_to_edit:
+    # Resolve the path to avoid source map paths errors
     file = file.resolve()
+    # Skip directories
     if file.is_dir():
+        continue
+
+    if file.suffix == ".html":
+        print(f"Minifying {file} with minify-html")
+
+        data = file.read_text("utf-8")
+        if file.suffix == ".html":
+            # Minify JavaScript attributes (Alpine.js)
+            # https://html.spec.whatwg.org/multipage/syntax.html#syntax-attribute-name
+            data = re.sub(r"(?s)(?<=[\"'\s])([^\s\"'>/=]+?)=([\"'])(.*?)\2", minify_attribute, data)
+
+        try:
+            data = minify_html.minify(
+                data,
+                do_not_minify_doctype=True,
+                minify_css=True,
+                minify_js=True,
+            )
+        except BaseException as exc:
+            print(f"::warning title=Minification of {file} failed::{type(exc).__qualname__}: {exc}")
+
+        file.write_text(data, "utf-8")
         continue
 
     if file.suffix == ".css":
@@ -112,26 +166,4 @@ for file in files_to_edit:
             print(f"::warning title=Minification of {file} failed, skipping file::{type(exc).__qualname__}: {exc}")
         continue
 
-    if file.suffix == ".html":
-        print(f"Minifying {file} with minify-html")
-
-        data = file.read_text("utf-8")
-        if file.suffix == ".html":
-            # Minify JavaScript attributes (Alpine.js)
-            # https://html.spec.whatwg.org/multipage/syntax.html#syntax-attribute-name
-            data = re.sub(r"(?s)(?<=[\"'\s])([^\s\"'>/=]+?)=([\"'])(.*?)\2", minify_attribute, data)
-
-        try:
-            data = minify_html.minify(
-                data,
-                do_not_minify_doctype=True,
-                minify_css=True,
-                minify_js=True,
-            )
-        except BaseException as exc:
-            print(f"::warning title=Minification of {file} failed::{type(exc).__qualname__}: {exc}")
-
-        file.write_text(data, "utf-8")
-
-    else:
-        print(f"Skipping minification of {file}, no minifier available")
+    print(f"Skipping minification of {file}, no minifier available")

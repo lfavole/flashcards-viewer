@@ -1,8 +1,12 @@
+"""
+Download all the external static files in the `static/ext/` directory.
+"""
 from pathlib import Path
 from posixpath import basename
 
 import requests
 
+# Create the output folder
 base_path = Path("static/ext")
 base_path.mkdir(parents=True, exist_ok=True)
 
@@ -24,6 +28,7 @@ urls = [
 
 for url in urls:
     print(f"Downloading {url}... ", end="")
+    # Download alpine-i18n to i18n.min.js because cdn.min.js is already Alpine.js
     output = base_path / ("i18n.min.js" if "alpinejs-i18n" in url else basename(url))
     with output.open("wb") as f:
         resp = requests.get(url, stream=True)
