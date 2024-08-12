@@ -337,17 +337,17 @@ async function patchMediaURLs(html, file) {
     return ret;
 }
 
-function render(model, template, note, flipped, textOnly) {
+function render(model, template, note, flipped, textOnly, noCSS) {
     var html = flipped ? template.afmt : template.qfmt;
     var fields = model.flds.map(f => f.name);
     var note_fields = note.flds.split("\x1f");
     html = html.replace(/\{\{\s*([^}]+?)\s*\}\}/g, function(_, param) {
         if(param == "FrontSide" && flipped) {
-            return render(model, template, note, false, textOnly);
+            return render(model, template, note, false, textOnly, true);
         }
         return note_fields[fields.indexOf(param)];
     });
-    return textOnly ? stripHTML(html) : "<style>" + model.css + "</style>" + html;
+    return textOnly ? stripHTML(html) : (noCSS ? "" : "<style>" + model.css + "</style>") + html;
 }
 
 async function renderWithMedia(model, template, note, file, flipped) {
