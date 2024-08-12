@@ -23,9 +23,6 @@ function setupTranslations() {
 }
 
 window.addEventListener("DOMContentLoaded", function() {
-    // Setup translations
-    setupTranslations();
-
     // Setup Tablesort on all the existing tables...
     var tables = document.querySelectorAll("table");
     for(var table of tables) {
