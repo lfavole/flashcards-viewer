@@ -27,7 +27,7 @@ urls = [
 ]
 
 for url in urls:
-    print(f"Downloading {url}... ", end="")
+    print(f"Downloading {url} ... ", end="")
     # Download alpine-i18n to i18n.min.js because cdn.min.js is already Alpine.js
     output = base_path / ("i18n.min.js" if "alpinejs-i18n" in url else basename(url))
     with output.open("wb") as f:
