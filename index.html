@@ -36,7 +36,9 @@ var selectFirst = obj => Object.keys(obj).length == 1 ? obj[Object.keys(obj)[0]]
 Alpine.effect(() => {if(Object.keys(files).length) selectedFile = selectedFile || selectFirst(files)});
 Alpine.effect(() => {if(selectedFile) selectedDeck = selectedDeck || selectFirst(selectedFile.decks)});
 Alpine.effect(() => {if(selectedDeck) selectedNote = selectedNote || selectFirst(selectedDeck)});
-Alpine.effect(() => {if(selectedNote) selectedTemplate = selectedTemplate || selectFirst(selectedFile.models[selectedNote.mid].tmpls)});
+
+// For templates, always re-select the first object
+Alpine.effect(() => {if(selectedNote) selectedTemplate = selectedFile.models[selectedNote.mid].tmpls[0]});
 ">
     <div class="dropzone"
     x-data="{ draggingCount: 0 }">
