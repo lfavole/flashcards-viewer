@@ -35,7 +35,7 @@ def _minify_js(js: str, quote: str | None = None, expression=False, try_async=Fa
         )
         ret = (
             sp.run(
-                ["uglifyjs", "--compress", "--module", *expression_opt, *quote_style],
+                ["uglifyjs", "--compress", "--mangle", "--module", *expression_opt, *quote_style],
                 stdout=sp.PIPE,
                 input=js,
                 text=True,
@@ -162,7 +162,7 @@ for file in files_to_edit:
         print(f"Minifying {file} with UglifyJS")
         try:
             sp.run(
-                ["uglifyjs", str(file), "--compress", "--source-map", "--output", str(file)],
+                ["uglifyjs", str(file), "--compress", "--mangle", "--source-map", "--output", str(file)],
                 cwd=Path("site"),
                 check=True,
             )
