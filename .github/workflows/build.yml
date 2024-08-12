@@ -47,14 +47,14 @@ jobs:
           mkdir site
           cp -r index.html static/ site/
 
-      - name: Add hash to all static files
-        run: python add_hash.py
-
       - name: Add Sentry DSN
         if: ${{ env.SENTRY_DSN }}
         run: python add_sentry.py
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
+      - name: Add hash to all static files
+        run: python add_hash.py
 
       - name: Minify static files
         run: python minify.py
