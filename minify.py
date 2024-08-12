@@ -152,6 +152,10 @@ for file in files_to_edit:
             )
         except sp.CalledProcessError as exc:
             print(f"::warning title=Minification of {file} failed, skipping file::{type(exc).__qualname__}: {exc}")
+        else:
+            data = file.read_text("utf-8")
+            data = re.sub(r"# sourceMappingURL=.*/([^/\s]*)\b", r"# sourceMappingURL=\1", data)
+            file.write_text(data, "utf-8")
         continue
 
     if file.suffix == ".js":
