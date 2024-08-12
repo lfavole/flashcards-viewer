@@ -2,9 +2,10 @@
 Minify all the files in the `site/` directory with minify-html, LightningCSS or UglifyJS.
 """
 
-from pathlib import Path
 import re
 import subprocess as sp
+from pathlib import Path
+from threading import Thread
 
 import minify_html
 
@@ -103,6 +104,67 @@ def minify_attribute(match: re.Match[str]):
 
 files_to_edit = [*Path("site/static").glob("**/*"), Path("site/index.html")]
 
+
+def run_minify_html(file: Path):
+    print(f"Minifying {file} with minify-html")
+
+    data = file.read_text("utf-8")
+    if file.suffix == ".html":
+        # Minify JavaScript attributes (Alpine.js)
+        # https://html.spec.whatwg.org/multipage/syntax.html#syntax-attribute-name
+        data = re.sub(r"(?s)(?<=[\"'\s])([^\s\"'>/=]+?)=([\"'])(.*?)\2", minify_attribute, data)
+
+    try:
+        data = minify_html.minify(
+            data,
+            do_not_minify_doctype=True,
+            minify_css=True,
+            minify_js=True,
+        )
+    except BaseException as exc:
+        print(f"::warning title=Minification of {file} failed::{type(exc).__qualname__}: {exc}")
+
+    file.write_text(data, "utf-8")
+
+
+def run_minify_css(file: Path):
+    print(f"Minifying {file} with LightningCSS")
+    try:
+        sp.run(
+            [
+                "lightningcss",
+                "--minify",
+                "--bundle",
+                "--targets",
+                ">= 0.5%",
+                "--sourcemap",
+                str(file),
+                "--output-file",
+                str(file),
+            ],
+            cwd=Path("site"),
+            check=True,
+        )
+    except sp.CalledProcessError as exc:
+        print(f"::warning title=Minification of {file} failed, skipping file::{type(exc).__qualname__}: {exc}")
+    else:
+        data = file.read_text("utf-8")
+        data = re.sub(r"# sourceMappingURL=.*/([^/\s]*)\b", r"# sourceMappingURL=\1", data)
+        file.write_text(data, "utf-8")
+
+
+def run_minify_js(file: Path):
+    print(f"Minifying {file} with UglifyJS")
+    try:
+        sp.run(
+            ["uglifyjs", str(file), "--compress", "--mangle", "--source-map", "--output", str(file)],
+            cwd=Path("site"),
+            check=True,
+        )
+    except sp.CalledProcessError as exc:
+        print(f"::warning title=Minification of {file} failed, skipping file::{type(exc).__qualname__}: {exc}")
+
+
 for file in files_to_edit:
     # Resolve the path to avoid source map paths errors
     file = file.resolve()
@@ -111,63 +173,15 @@ for file in files_to_edit:
         continue
 
     if file.suffix == ".html":
-        print(f"Minifying {file} with minify-html")
-
-        data = file.read_text("utf-8")
-        if file.suffix == ".html":
-            # Minify JavaScript attributes (Alpine.js)
-            # https://html.spec.whatwg.org/multipage/syntax.html#syntax-attribute-name
-            data = re.sub(r"(?s)(?<=[\"'\s])([^\s\"'>/=]+?)=([\"'])(.*?)\2", minify_attribute, data)
-
-        try:
-            data = minify_html.minify(
-                data,
-                do_not_minify_doctype=True,
-                minify_css=True,
-                minify_js=True,
-            )
-        except BaseException as exc:
-            print(f"::warning title=Minification of {file} failed::{type(exc).__qualname__}: {exc}")
-
-        file.write_text(data, "utf-8")
+        Thread(target=run_minify_html, args=[file]).start()
         continue
 
     if file.suffix == ".css":
-        print(f"Minifying {file} with LightningCSS")
-        try:
-            sp.run(
-                [
-                    "lightningcss",
-                    "--minify",
-                    "--bundle",
-                    "--targets",
-                    ">= 0.5%",
-                    "--sourcemap",
-                    str(file),
-                    "--output-file",
-                    str(file),
-                ],
-                cwd=Path("site"),
-                check=True,
-            )
-        except sp.CalledProcessError as exc:
-            print(f"::warning title=Minification of {file} failed, skipping file::{type(exc).__qualname__}: {exc}")
-        else:
-            data = file.read_text("utf-8")
-            data = re.sub(r"# sourceMappingURL=.*/([^/\s]*)\b", r"# sourceMappingURL=\1", data)
-            file.write_text(data, "utf-8")
+        Thread(target=run_minify_css, args=[file]).start()
         continue
 
     if file.suffix == ".js":
-        print(f"Minifying {file} with UglifyJS")
-        try:
-            sp.run(
-                ["uglifyjs", str(file), "--compress", "--mangle", "--source-map", "--output", str(file)],
-                cwd=Path("site"),
-                check=True,
-            )
-        except sp.CalledProcessError as exc:
-            print(f"::warning title=Minification of {file} failed, skipping file::{type(exc).__qualname__}: {exc}")
+        Thread(target=run_minify_js, args=[file]).start()
         continue
 
     print(f"Skipping minification of {file}, no minifier available")
