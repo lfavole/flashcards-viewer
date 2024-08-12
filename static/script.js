@@ -39,6 +39,17 @@ window.addEventListener("DOMContentLoaded", function() {
     });
     observer.observe(document.body, {childList: true, subtree: true});
 
+    // Setup the service worker
+    if("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("sw.js")
+        .then(function(reg) {
+            console.log(`Service worker registration succeeded. Scope is ${reg.scope}`);
+        })
+        .catch(function(error) {
+            console.error("Service worker registration failed:", error);
+        });
+    }
+
     // Setup Eruda if needed
     if(new URLSearchParams(location.search).get("eruda")) {
         var script = document.createElement("script");
