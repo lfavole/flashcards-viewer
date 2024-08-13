@@ -365,7 +365,15 @@ async function renderWithMedia(model, template, note, file, flipped) {
 var promise = Promise.resolve();
 
 async function typeset(...elements) {
-    return await promise.then(() => MathJax.typesetPromise(...elements));
+    for(var element of elements) {
+        if(element.textContent.match(/\\\[.*\\\]/s)) {
+            // If any of the elements contains math, call the function (which loads the script)
+            return await promise.then(() => MathJax.typesetPromise(...elements));
+        }
+    }
+
+    // Otherwise return a promise that resolves immediatly
+    return new Promise(resolve => resolve());
 }
 
 document.addEventListener("alpine-i18n:ready", function () {

@@ -8,7 +8,7 @@ from pathlib import Path
 # Index page
 index_file = Path("site/index.html")
 # Sentry script
-sentry_file = Path("site/static/sentry.js")
+sentry_file = Path("site/static/loader.js")
 
 # Read the contents of the above files
 index_data = index_file.read_text("utf-8")
