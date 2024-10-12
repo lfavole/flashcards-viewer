@@ -1,10 +1,10 @@
+/**
+ * Patch a `func` with a promise that:
+ * * loads the script at the given `url`
+ * * returns the actual result
+ * This function is optimized for code golfing and takes less than 400 bytes when it is minified.
+ */
 function loadScript(url, func) {
-    /**
-     * Patch a `func` with a promise that:
-     * * loads the script at the given `url`
-     * * returns the actual result
-     * This function is optimized for code golfing and takes less than 400 bytes when it is minified.
-     */
     var parts = func.split(".");
     var partsLength = parts.length;
     // Returns a function in the global scope

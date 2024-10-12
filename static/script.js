@@ -176,10 +176,10 @@ async function openAndParseFile(file) {
     };
 }
 
+/**
+ * Sort an object by its keys or with the specified function.
+ */
 function sortObject(obj, fn) {
-    /**
-     * Sort an object by its keys or with the specified function.
-     */
     var ret = {};
     var fn = fn || (e => e[0]);
     Object.entries(obj).sort((a, b) => fn(a[0], a[1]).localeCompare(fn(b[0], b[1])))
@@ -187,10 +187,10 @@ function sortObject(obj, fn) {
     return ret;
 }
 
+/**
+ * Given a deck name, return all the names of its parent decks.
+ */
 function getParentDecks(deckName) {
-    /**
-     * Given a deck name, return all the names of its parent decks.
-     */
     var candidate = deckName;
     var ret = [];
     while(candidate.includes("::")) {
@@ -200,20 +200,20 @@ function getParentDecks(deckName) {
     return ret;
 }
 
+/**
+ * Return an object that maps a deck ID to a deck name.
+ */
 function getDeckNameIds(decks) {
-    /**
-     * Return an object that maps a deck ID to a deck name.
-     */
     var ret = {};
     for(var deckId in decks)
         ret[decks[deckId].name] = +deckId;
     return ret;
 }
 
+/**
+ * Cleanup a models object: add an ID to the templates.
+ */
 function cleanupModels(models) {
-    /**
-     * Cleanup a models object: add an ID to the templates.
-     */
     for(var model of Object.values(models)) {
         for(var [id, template] of Object.entries(model.tmpls)) {
             template.id = id;
@@ -222,15 +222,15 @@ function cleanupModels(models) {
     return models;
 }
 
+/**
+ * Cleanup a decks list:
+ * * Remove the "Default" deck if it is empty
+ * * Add non-existent parent decks
+ * * Add parent deck IDs
+ * * Sort the list
+ * * Make the list reactive
+ */
 function cleanupDecks(decks, notes) {
-    /**
-     * Cleanup a decks list:
-     * * Remove the "Default" deck if it is empty
-     * * Add non-existent parent decks
-     * * Add parent deck IDs
-     * * Sort the list
-     * * Make the list reactive
-     */
     // Remove the "Default" deck
     if(decks[1] && decks[1].name == "Default" && !getNotes({notes: notes}, {id: 1}).length)
         delete decks[1];

@@ -19,10 +19,10 @@ self.addEventListener("install", evt => {
 	evt.waitUntil(init());
 });
 
+/**
+ * Returns true if the URL of the given response contains a hash, false otherwise.
+ */
 function hasHash(response) {
-	/**
-	 * Returns true if the URL of the given response contains a hash, false otherwise.
-	 */
 	return response.url.match(/\.[0-9a-f]{8,}\.[^.]$/);
 }
 
