@@ -69,10 +69,10 @@ loadScript("mathjax.min", "MathJax.typesetPromise");
     var SENTRY_DSN = "";
     if(!SENTRY_DSN) return;
 
-    loadScript("bundle.tracing.replay.min", "Sentry.init");
-
-    document.addEventListener("DOMContentLoaded", async function() {
-        await Sentry.init({
+    var script = document.createElement("script");
+    script.src = "static/ext/bundle.tracing.replay.min.js";
+    script.addEventListener("load", function() {
+        Sentry.init({
             dsn: SENTRY_DSN,
             integrations: [
                 Sentry.browserTracingIntegration(),
@@ -86,4 +86,5 @@ loadScript("mathjax.min", "MathJax.typesetPromise");
             profilesSampleRate: 1.0,
         });
     });
+    document.head.appendChild(script);
 })();
