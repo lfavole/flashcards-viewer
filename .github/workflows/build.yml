@@ -53,8 +53,8 @@ jobs:
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
-      - name: Add version in service worker
-        run: python add_version_in_sw.py
+      - name: Add version and copy service worker
+        run: python add_version_and_copy_sw.py
 
       - name: Add hash to all static files
         run: python add_hash.py
