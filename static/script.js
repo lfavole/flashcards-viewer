@@ -3,6 +3,11 @@ var config = {language: "en"};
 var languages = {"fr": "static/fr.js"};
 var sqlSource = "static/ext/sql-wasm.wasm";
 
+/**
+ * Load a language file.
+ * @param {string} lang - The language code (e.g. "fr", "en-US")
+ * @return {boolean} - True if the language was loaded, false otherwise
+ */
 function loadLanguage(lang) {
     lang = lang.split("-")[0];
     if(!(lang in languages)) return;
@@ -16,6 +21,9 @@ function loadLanguage(lang) {
     return true;
 }
 
+/**
+ * Setup the translations for the current language.
+ */
 function setupTranslations() {
     for(var lang of navigator.languages) {
         if(loadLanguage(lang)) return;
@@ -61,7 +69,12 @@ window.addEventListener("DOMContentLoaded", function() {
     }
 });
 
-function sqlToDict(sql) {
+/***
+ * Convert a SQL result to an object.
+ * @param {Object} sql - The SQL result object
+ * @return {Array} - The converted object
+ */
+function sqlToObject(sql) {
     var ret = [];
     var dict, i, l;
     for(var row of sql[0].values) {
@@ -74,6 +87,12 @@ function sqlToDict(sql) {
     return ret;
 }
 
+/**
+ * Open a file or a directory recursively.
+ * @param {FileSystemHandle} item - The file or directory to open
+ * @param {Function} openFunc - The function to call for each file or URL
+ * @return {Promise} - A promise that resolves when all files are opened
+ */
 function _recursiveOpenEntry(item, openFunc) {
     if(item.isFile)
         item.file(openFunc);
@@ -86,6 +105,12 @@ function _recursiveOpenEntry(item, openFunc) {
     }
 }
 
+/**
+ * Open a file or a directory recursively using the File System Access API.
+ * @param {FileSystemHandle} item - The file or directory to open
+ * @param {Function} openFunc - The function to call for each file or URL
+ * @return {Promise} - A promise that resolves when all files are opened
+ */
 async function _recursiveOpenHandle(item, openFunc) {
     for await (file of item.values()) {
         if(file instanceof FileSystemDirectoryHandle)
@@ -95,6 +120,13 @@ async function _recursiveOpenHandle(item, openFunc) {
     }
 }
 
+/**
+ * Open a file or a directory recursively.
+ * @param {DataTransfer|HTMLInputElement} dataTransfer - The DataTransfer object or the file input element
+ * @param {Function} openFunc - The function to call for each file or URL
+ * @param {boolean} test - If true, only call the function without opening the file
+ * @return {Promise} - A promise that resolves when all files are opened
+ */
 async function recursiveOpen(dataTransfer, openFunc, test = false) {
     // Array of files or URLs
     if(dataTransfer.length !== undefined) {
@@ -131,6 +163,11 @@ async function recursiveOpen(dataTransfer, openFunc, test = false) {
     }
 }
 
+/**
+ * Get the number of files in a DataTransfer or file input.
+ * @param {DataTransfer|HTMLInputElement} dataTransferOrInput - The DataTransfer object or the file input element
+ * @return {Promise<number>} - The number of files
+ */
 async function getCount(dataTransferOrInput) {
     var count = 0;
     var open = () => count++;
@@ -138,6 +175,12 @@ async function getCount(dataTransferOrInput) {
     return count;
 }
 
+/**
+ * Add files to a files array.
+ * @param {DataTransfer|HTMLInputElement} dataTransferOrInput - The DataTransfer object or the file input element
+ * @param {Object} files - The object to add the files to
+ * @return {Promise<void>} - A promise that resolves when all files are added
+ */
 async function addFilesTo(dataTransferOrInput, files) {
     await recursiveOpen(dataTransferOrInput, async file => {
         if(!file) return;
@@ -145,6 +188,11 @@ async function addFilesTo(dataTransferOrInput, files) {
     });
 }
 
+/**
+ * Open a file and parse it.
+ * @param {File|Blob|string} file - The file or URL to open
+ * @return {Promise<Object>} - A promise that resolves to the parsed file
+ */
 async function openAndParseFile(file) {
     if(!file) return;
 
@@ -163,10 +211,10 @@ async function openAndParseFile(file) {
     var SQL = await initSqlJs({locateFile: f => f == "sql-wasm.wasm" ? sqlSource : "static/ext/" + f});
     var db = new SQL.Database(buf);
 
-    var col_info = sqlToDict(db.exec("SELECT models, decks FROM col"))[0];
+    var col_info = sqlToObject(db.exec("SELECT models, decks FROM col"))[0];
     // https://stackoverflow.com/a/8161801
     // https://dba.stackexchange.com/a/315294
-    var notes = sqlToDict(db.exec("SELECT notes.mid, notes.mod, notes.tags, notes.flds, notes.sfld, cards.did FROM notes LEFT JOIN cards ON notes.id = cards.nid AND cards.id = (SELECT id FROM cards WHERE notes.id = cards.nid LIMIT 1)"));
+    var notes = sqlToObject(db.exec("SELECT notes.mid, notes.mod, notes.tags, notes.flds, notes.sfld, cards.did FROM notes LEFT JOIN cards ON notes.id = cards.nid AND cards.id = (SELECT id FROM cards WHERE notes.id = cards.nid LIMIT 1)"));
     return {
         models: cleanupModels(JSON.parse(col_info.models)),
         decks: cleanupDecks(JSON.parse(col_info.decks), notes),
@@ -178,6 +226,9 @@ async function openAndParseFile(file) {
 
 /**
  * Sort an object by its keys or with the specified function.
+ * * @param {Object} obj - The object to sort
+ * * @param {Function} fn - The function to use for sorting (optional)
+ * * @return {Object} - The sorted object
  */
 function sortObject(obj, fn) {
     var ret = {};
@@ -189,6 +240,9 @@ function sortObject(obj, fn) {
 
 /**
  * Given a deck name, return all the names of its parent decks.
+ * * @param {string} deckName - The name of the deck
+ * * @return {Array} - The names of the parent decks
+ * * @example getParentDecks("A::B::C") == ["A::B", "A"]
  */
 function getParentDecks(deckName) {
     var candidate = deckName;
@@ -202,6 +256,8 @@ function getParentDecks(deckName) {
 
 /**
  * Return an object that maps a deck ID to a deck name.
+ * * @param {Object} decks - The decks object
+ * * @return {Object} - The object that maps deck names to IDs
  */
 function getDeckNameIds(decks) {
     var ret = {};
@@ -212,6 +268,8 @@ function getDeckNameIds(decks) {
 
 /**
  * Cleanup a models object: add an ID to the templates.
+ * * @param {Object} models - The models object
+ * * @return {Object} - The cleaned up models object
  */
 function cleanupModels(models) {
     for(var model of Object.values(models)) {
@@ -229,6 +287,10 @@ function cleanupModels(models) {
  * * Add parent deck IDs
  * * Sort the list
  * * Make the list reactive
+ *
+ * * @param {Object} decks - The decks object
+ * * @param {Object} notes - The notes object
+ * * @return {Object} - The cleaned up decks object
  */
 function cleanupDecks(decks, notes) {
     // Remove the "Default" deck
@@ -278,6 +340,12 @@ function cleanupDecks(decks, notes) {
     return decks;
 }
 
+/**
+ * Check if a deck is hidden.
+ * * @param {Object} deck - The deck object
+ * * @param {Object} decks - The decks object
+ * * @return {boolean} - True if the deck is hidden, false otherwise
+ */
 function isHidden(deck, decks) {
     var deckNameIds = getDeckNameIds(decks);
 
@@ -306,10 +374,21 @@ function getTemplates(file, note) {
     return model.tmpls;
 }
 
+/**
+ * Get the notes of a deck.
+ * * @param {Object} file - The file object
+ * * @param {Object} deck - The deck object
+ * * @return {Array} - The notes of the deck
+ */
 function getNotes(file, deck) {
     return file.notes.filter(e => e.did == +deck.id);
 }
 
+/**
+ * Strip HTML tags from a string.
+ * * @param {string} html - The HTML string to strip
+ * * @return {string} - The stripped string
+ */
 function stripHTML(html) {
     return html
     .replace(/<img[^>]+alt="([^"]+)"[^>]*>/g, "$1 ")
@@ -319,6 +398,7 @@ function stripHTML(html) {
     .replace(/<[^>]+>/g, "")
     .replace(/ {2,}/g, " ")
     .replace(/\n{2,}/g, "\n")
+    .replace(/&nbsp;/g, "\xa0")
     .trim();
 }
 
@@ -328,6 +408,13 @@ var FIELDS = {
     answer: "Answer",
 };
 
+/**
+ * Get the value of a field in a note.
+ * * @param {Object} note - The note object
+ * * @param {string} field - The field name
+ * * @param {Object} file - The file object
+ * * @return {string} - The value of the field
+ */
 function getField(note, field, file) {
     if(field == "question")
         return stripHTML(render(file.models[note.mid], file.models[note.mid].tmpls[0], note, false, true));
@@ -336,6 +423,13 @@ function getField(note, field, file) {
     return note[field];
 }
 
+/**
+ * Get the value of a field in a note.
+ * * @param {Object} note - The note object
+ * * @param {string} field - The field name
+ * * @param {Object} file - The file object
+ * * @return {string} - The value of the field
+ */
 async function getMediaURL(path, file) {
     var item;
     for(var itemToTry in file.media) {
@@ -349,6 +443,12 @@ async function getMediaURL(path, file) {
     return URL.createObjectURL(blob);
 }
 
+/**
+ * Replace the URLs in a HTML string with object URLs.
+ * * @param {string} html - The HTML string to modify
+ * * @param {Object} file - The file object
+ * * @return {string} - The modified HTML string
+ */
 async function patchMediaURLs(html, file) {
     var parts = html.split(/(<img[^>]+src="|<link[^>]+href="|<script[^>]+src=")([^"]+)("[^>]*>)/g);
     // [before_tag, before, url, after, ...]
@@ -371,20 +471,23 @@ async function patchMediaURLs(html, file) {
     return ret;
 }
 
-var CLOZE_RE = /\{\{\s*c([\d+])::([^}]+?)(?:::([^}]+?))?\s*\}\}/gm;
+// To match on multiple lines: https://stackoverflow.com/a/16119722
+var FIELD_RE = /\{\{\s*([\s\S]*?)\s*\}\}/gm;
+var CONDITIONAL_CARD_RE = /\{\{\s*([#^])([^}]+?)\s*\}\}([\s\S]*?)\{\{\s*\/\2\s*\}\}/gm;
+var CLOZE_RE = /\{\{\s*c([\d+])::([\s\S]+?)(?:::([\s\S]+?))?\s*\}\}/gm;
 
 /***
  * Get the numbers of the clozes in a template.
  * @param {Object} model - The model object
  * @param {Object} note - The note object
  * @return {Array} - The numbers of the clozes in the template
- * */
+ */
 function getClozesNumbers(model, note) {
     var numbers = [];
     var html = model.tmpls[0].qfmt;
     var fields = model.flds.map(f => f.name);
     var note_fields = note.flds.split("\x1f");
-    html = html.replace(/\{\{\s*([^}]+?)\s*\}\}/g, function(match, fieldName) {
+    html = html.replace(FIELD_RE, function(match, fieldName) {
         if(fieldName.startsWith("cloze:"))
             return note_fields[fields.indexOf(fieldName.substring(6))];
     });
@@ -395,6 +498,13 @@ function getClozesNumbers(model, note) {
     return numbers.sort((a, b) => +a - +b);
 }
 
+/**
+ * Make a cloze deletion in the template.
+ * * @param {number} cardNumber - The number of the card
+ * * @param {string} html - The HTML to modify
+ * * @param {boolean} flipped - True if the card is flipped, false otherwise
+ * * @return {string} - The modified HTML
+ */
 function makeCloze(cardNumber, html, flipped) {
     return html.replace(CLOZE_RE, function(_, clozeNumber, clozeContent, hint) {
         if (clozeNumber != cardNumber) {
@@ -408,16 +518,26 @@ function makeCloze(cardNumber, html, flipped) {
     });
 }
 
+/**
+ * Render a template with the given model and note.
+ * * @param {Object} model - The model object
+ * * @param {Object} template - The template object
+ * * @param {Object} note - The note object
+ * * @param {boolean} flipped - True if the card is flipped, false otherwise
+ * * @param {boolean} textOnly - True if only the text should be returned, false otherwise.
+ * * @param {boolean} noCSS - True if no CSS should be added, false otherwise
+ * * @return {string} - The rendered HTML
+ */
 function render(model, template, note, flipped, textOnly, noCSS) {
     var html = flipped ? template.afmt : template.qfmt;
     var fields = model.flds.map(f => f.name);
     var note_fields = note.flds.split("\x1f");
-    html = html.replace(/\{\{\s*([#^])([^}]+?)\s*\}\}([\s\S]*?)\{\{\s*\/\2\s*\}\}/gm, function(_, invertSymbol, fieldName, content) {
+    html = html.replace(CONDITIONAL_CARD_RE, function(_, invertSymbol, fieldName, content) {
         var invert = invertSymbol == "^";
         var ret = !!note_fields[fields.indexOf(fieldName)];
         return (invert ? !ret : ret) ? content : "";
     });
-    html = html.replace(/\{\{\s*([^}]+?)\s*\}\}/g, function(match, fieldName) {
+    html = html.replace(FIELD_RE, function(_, fieldName) {
         if(fieldName.startsWith("cloze:")) {
             fieldName = fieldName.substring(6);
             var index = fields.indexOf(fieldName);
@@ -438,6 +558,11 @@ async function renderWithMedia(model, template, note, file, flipped) {
 
 var promise = Promise.resolve();
 
+/***
+ * Typeset the given elements with MathJax.
+ * @param {HTMLElement} elements - The elements to typeset
+ * @return {Promise} - A promise that resolves when the typesetting is done
+ */
 async function typeset(...elements) {
     for(var element of elements) {
         if(element.textContent.match(/\\\[.*\\\]|\\\(.*\\\(/s)) {

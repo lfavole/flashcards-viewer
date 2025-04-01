@@ -64,7 +64,7 @@ window.MathJax = {
 loadScript("mathjax/tex-chtml-full", "MathJax.typesetPromise");
 
 // If there is no Sentry DSN: this will be removed
-// If there is no Sentry DSN: the function expression will be simplified and the DSN will appear only once
+// (the function expression will be simplified and the DSN will appear only once)
 (function() {
     var SENTRY_DSN = "";
     if(!SENTRY_DSN) return;
