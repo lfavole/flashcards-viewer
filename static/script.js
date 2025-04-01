@@ -289,6 +289,23 @@ function isHidden(deck, decks) {
     return false;
 }
 
+/** Get the templates of a model.
+ * @param {Object} file - The file object
+ * @param {Object} note - The note object
+ */
+function getTemplates(file, note) {
+    var model = file.models[note.mid];
+    if (model.type == 1) {
+        return getClozesNumbers(model, note).map(n => {
+            var tmpl = JSON.parse(JSON.stringify(model.tmpls[0]));
+            tmpl.ord = n;
+            tmpl.name = "Carte " + n;
+            return tmpl;
+        });
+    }
+    return model.tmpls;
+}
+
 function getNotes(file, deck) {
     return file.notes.filter(e => e.did == +deck.id);
 }
@@ -333,7 +350,7 @@ async function getMediaURL(path, file) {
 }
 
 async function patchMediaURLs(html, file) {
-    var parts = html.split(/(<img[^>]+src=")([^"]+)("[^>]*>)/g);
+    var parts = html.split(/(<img[^>]+src="|<link[^>]+href="|<script[^>]+src=")([^"]+)("[^>]*>)/g);
     // [before_tag, before, url, after, ...]
     var ret = "";
     for(var i = 0, l = parts.length; i < l; i++) {
@@ -342,18 +359,75 @@ async function patchMediaURLs(html, file) {
         else  // normal text
             ret += parts[i];
     }
+    var cssImports = [];
+    // import and import url
+    ret = ret.replace(/@import\s+(?:url\(["']?([^"'\)]+)["']?\)(?:\s+[^;]+)?|["']([^"']+)["'](?:\s+[^;]+)?)\s*;/g, function(_, url1, url2) {
+        cssImports.push(url1 || url2);
+        return "";
+    });
+    for (var imp of cssImports) {
+        ret += '<link rel="stylesheet" href="' + await getMediaURL(imp, file) + '">';
+    }
     return ret;
+}
+
+var CLOZE_RE = /\{\{\s*c([\d+])::([^}]+?)(?:::([^}]+?))?\s*\}\}/gm;
+
+/***
+ * Get the numbers of the clozes in a template.
+ * @param {Object} model - The model object
+ * @param {Object} note - The note object
+ * @return {Array} - The numbers of the clozes in the template
+ * */
+function getClozesNumbers(model, note) {
+    var numbers = [];
+    var html = model.tmpls[0].qfmt;
+    var fields = model.flds.map(f => f.name);
+    var note_fields = note.flds.split("\x1f");
+    html = html.replace(/\{\{\s*([^}]+?)\s*\}\}/g, function(match, fieldName) {
+        if(fieldName.startsWith("cloze:"))
+            return note_fields[fields.indexOf(fieldName.substring(6))];
+    });
+    html.replace(CLOZE_RE, function(_, clozeNumber) {
+        if(!numbers.includes(clozeNumber))
+            numbers.push(clozeNumber);
+    });
+    return numbers.sort((a, b) => +a - +b);
+}
+
+function makeCloze(cardNumber, html, flipped) {
+    return html.replace(CLOZE_RE, function(_, clozeNumber, clozeContent, hint) {
+        if (clozeNumber != cardNumber) {
+            return '<span class="cloze-inactive">' + clozeContent + "</span>";
+        }
+        return (
+            '<span class="cloze">'
+            + (flipped ? clozeContent : "[" + (hint || "...") + "]")
+            + "</span>"
+        );
+    });
 }
 
 function render(model, template, note, flipped, textOnly, noCSS) {
     var html = flipped ? template.afmt : template.qfmt;
     var fields = model.flds.map(f => f.name);
     var note_fields = note.flds.split("\x1f");
-    html = html.replace(/\{\{\s*([^}]+?)\s*\}\}/g, function(_, param) {
-        if(param == "FrontSide" && flipped) {
+    html = html.replace(/\{\{\s*([#^])([^}]+?)\s*\}\}([\s\S]*?)\{\{\s*\/\2\s*\}\}/gm, function(_, invertSymbol, fieldName, content) {
+        var invert = invertSymbol == "^";
+        var ret = !!note_fields[fields.indexOf(fieldName)];
+        return (invert ? !ret : ret) ? content : "";
+    });
+    html = html.replace(/\{\{\s*([^}]+?)\s*\}\}/g, function(match, fieldName) {
+        if(fieldName.startsWith("cloze:")) {
+            fieldName = fieldName.substring(6);
+            var index = fields.indexOf(fieldName);
+            return makeCloze(template.ord, index == -1 ? `ERROR: Field '${fieldName}' not found` : note_fields[index], flipped);
+        }
+        if(fieldName == "FrontSide" && flipped) {
             return render(model, template, note, false, textOnly, true);
         }
-        return note_fields[fields.indexOf(param)];
+        var index = fields.indexOf(fieldName);
+        return index == -1 ? `ERROR: Field '${fieldName}' not found` : note_fields[index];
     });
     return textOnly ? stripHTML(html) : (noCSS ? "" : "<style>" + model.css + "</style>") + html;
 }
