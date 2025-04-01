@@ -440,9 +440,9 @@ var promise = Promise.resolve();
 
 async function typeset(...elements) {
     for(var element of elements) {
-        if(element.textContent.match(/\\\[.*\\\]/s)) {
+        if(element.textContent.match(/\\\[.*\\\]|\\\(.*\\\(/s)) {
             // If any of the elements contains math, call the function (which loads the script)
-            return await promise.then(() => MathJax.typesetPromise(...elements));
+            return await promise.then(() => MathJax.typesetPromise(elements));
         }
     }
 
