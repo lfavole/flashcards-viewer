@@ -118,3 +118,9 @@ th[role=columnheader]:not(.no-sort):hover:after {
 	visibility: visible;
 	opacity: 1;
 }
+
+.card {
+	box-shadow: 0 0 10px #888;
+	margin: 1em 0;
+	padding: 0.5em 1em;
+}
