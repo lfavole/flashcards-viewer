@@ -579,3 +579,61 @@ document.addEventListener("alpine-i18n:ready", function () {
     // Setup translations
     AlpineI18n.create("en", translations);
 });
+
+window.addEventListener("DOMContentLoaded", function() {
+    let isDragging = false;
+    let draggingContainer;
+    let draggingDirection;
+    let initialX, initialY, initialWidth, initialHeight;
+
+    function mousedownHandler(direction, event) {
+        isDragging = true;
+        draggingDirection = direction;
+        draggingContainer = this;
+        initialX = event.clientX;
+        initialY = event.clientY;
+        const rect = draggingContainer.getBoundingClientRect();
+        initialWidth = rect.width;
+        initialHeight = rect.height;
+
+        document.body.style.cursor = (direction == "vertical" ? "s" : "e") + "-resize";
+    }
+
+    document.addEventListener("mousemove", function(event) {
+        if (!isDragging) return;
+
+        if (draggingDirection == "horizontal") {
+            const xDelta = event.clientX - initialX;
+            draggingContainer.style.width = initialWidth + xDelta + "px";
+            // const rect = draggingContainer.getBoundingClientRect();
+            // if (+draggingContainer.style.width.slice(0, -2) < rect.width)
+            //     draggingContainer.style.width = rect.width + "px";
+        } else {
+            const yDelta = event.clientY - initialY;
+            draggingContainer.style.height = initialHeight + yDelta + "px";
+            // const rect = draggingContainer.getBoundingClientRect();
+            // if (+draggingContainer.style.height.slice(0, -2) < rect.height)
+            //     draggingContainer.style.height = rect.height + "px";
+        }
+    });
+
+    document.addEventListener("mouseup", function(event) {
+        isDragging = false;
+        document.body.style.cursor = "";
+    });
+
+    [
+        {handleNumber: 1, container: ".header", direction: "vertical"},
+        {handleNumber: 2, container: ".decks", direction: "horizontal"},
+        {handleNumber: 3, container: ".notes-container", direction: "horizontal"},
+        {handleNumber: 4, container: ".templates-container", direction: "vertical"},
+    ]
+    .forEach(function({ handleNumber, container, direction }) {
+        container = document.querySelector(container);
+        var handle = document.querySelector(".handle-" + handleNumber);
+        handle.style[direction == "vertical" ? "height" : "width"] = "8px";
+        handle.style["min-" + (direction == "vertical" ? "height" : "width")] = "8px";
+        handle.style.cursor = (direction == "vertical" ? "s" : "e") + "-resize";
+        handle.addEventListener("mousedown", mousedownHandler.bind(container, direction));
+    });
+});

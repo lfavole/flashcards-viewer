@@ -69,20 +69,37 @@
     margin-right: 0.1em;
 }
 
+.decks {
+	margin: 0;
+	padding: 0;
+}
+.decks li {
+    padding-left: calc(1em + var(--depth) * 1.5em);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	overflow: hidden;
+}
 .decks span:first-child {
 	display: inline-block;
 	box-sizing: content-box;
     width: 1em;
     text-align: center;
-    padding-left: calc(0.5em + var(--depth) * 1.5em);
+	margin-left: -1em;
 }
 
 table {
     border-collapse: collapse;
+	width: 100%;
 }
 td, th {
     border: 1px solid black;
     padding: 0.25em 0.5em;
+	height: 1.5em;
+	/* https://stackoverflow.com/a/11877033 */
+	max-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 tr:nth-of-type(2n+1) {
     background-color: #f5f5f5;
@@ -123,4 +140,48 @@ th[role=columnheader]:not(.no-sort):hover:after {
 	box-shadow: 0 0 10px #888;
 	margin: 1em 0;
 	padding: 0.5em 1em;
+}
+
+body {
+	height: 100vh;
+	margin: 0;
+	padding: 8px;
+}
+body, .right-pane {
+	display: flex;
+	flex-direction: column;
+	/* justify-content: space-between; */
+}
+.content {
+	display: flex;
+	height: 100%;
+}
+.header, .decks, .notes-container, .templates-container, .right-pane, .card {
+	overflow: auto;
+}
+.header, .decks, .notes-container, .templates-container {
+	flex-grow: 0;
+	flex-shrink: 0;
+	overflow: auto;
+}
+.decks {
+	min-width: 10%;
+	width: 20%;
+	height: 100%;
+}
+.notes-container {
+	width: 50%;
+	height: 400px;
+}
+.templates-container {
+	min-height: 100px;
+}
+.card {
+	flex-grow: 1;
+}
+.buttons {
+	text-align: center;
+}
+.handle {
+	background-color: red;
 }
