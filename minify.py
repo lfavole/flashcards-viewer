@@ -100,6 +100,8 @@ def minify_attribute(match: re.Match[str]):
     # Don't reuse the original quotes because we may end up with:
     # <a b="c" d="e="f""> which minifies to: <a b=c d=e= f""> (invalid HTML)
     value, quote = minify_js_with_quotes(value, expression)
+    # Keep spacing before and after "in" (used in x-for)
+    value = re.sub(r"\s*\bin\b\s*", " in ", value)
     return f"{name}={quote}{value}{quote}"
 
 
